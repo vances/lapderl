@@ -171,32 +171,32 @@ tei_assigned({'PH', 'DEACTIVATE', indication, _PhParms}, StateData) ->
 	NewStateData = StateData#state{ui_queue = []},
 	{next_state, tei_assigned, NewStateData}; 
 tei_assigned({'PH', 'DATA', indication,
-		<<0:1, CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#11:2, _P:1, 2#011:3>>},   % Command (SABME)
+		<<_SAPI:6, CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#011:3, _P:1, 2#11:2, 2#11:2>>},   % Command (SABME)
 		StateData) when StateData#state.role == network, CR == 1 ->  % Network/User side mismatch
 	{next_state, tei_assigned, StateData};
 tei_assigned({'PH', 'DATA', indication,
-		<<0:1, CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#11:2, _P:1, 2#011:3>>},   % Command (SABME)
+		<<_SAPI:6, CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#011:3, _P:1, 2#11:2, 2#11:2>>},   % Command (SABME)
 		StateData) when StateData#state.role == user , CR == 0 ->  % Network/User side mismatch
 	{next_state, tei_assigned, StateData};
 tei_assigned({'PH', 'DATA', indication,
-		<<0:1, CR:1, SAPI:6, 1:1, TEI:7,   % Address
-		2#11:2, 2#11:2, P:1, 2#011:3>>},   % Command (SABME)
+		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
+		2#011:3, P:1, 2#11:2, 2#11:2>>},   % Command (SABME)
 		StateData) when StateData#state.establishable == false ->
 	% able to establish? (no)
 	OutCR = 1 band bnot CR,
-	DM = <<0:1, OutCR:1, SAPI:6, 1:1, TEI:7, 2#11:2, 2#11:2, P:1, 2#000:3>>,
+	DM = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#000:3, P:1, 2#11:2, 2#11:2>>,
 	% TX DM
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, DM}),
 	{next_state, tei_assigned, StateData};
 tei_assigned({'PH', 'DATA', indication,
-		<<0:1, CR:1, SAPI:6, 1:1, TEI:7,   % Address
-		2#11:2, 2#11:2, P:1, 2#011:3>>},   % Command (SABME)
+		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
+		2#011:3, P:1, 2#11:2, 2#11:2>>},   % Command (SABME)
 		StateData) ->
 	% able to establish? (yes)
 	OutCR = 1 band bnot CR,
-	UA = <<0:1, OutCR:1, SAPI:6, 1:1, TEI:7, 2#11:2, 2#00:2, P:1, 2#011:3>>,
+	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	% TX UA
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
 	% Clear exception conditions
@@ -209,47 +209,47 @@ tei_assigned({'PH', 'DATA', indication,
 	NewStateData = NextStateData#state{'V(S)' = 0, 'V(A)' = 0, 'V(R)' = 0, t203_ref = T203_ref},
 	{next_state, multiple_frame_established, NewStateData};
 tei_assigned({'PH', 'DATA', indication,
-		<<0:1, CR:1, SAPI:6, 1:1, TEI:7,    % Address
-		2#11:2, 2#00:2, P:1, 2#010:3>>},    % Command (DISC)
+		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
+		2#010:3, P:1, 2#00:2, 2#11:2>>},   % Command (DISC)
 		StateData) ->
 	OutCR = 1 band bnot CR,
-	DM = <<0:1, OutCR:1, SAPI:6, 1:1, TEI:7, 2#11:2, 2#11:2, P:1, 2#000:3>>,
+	DM = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#000:3, P:1, 2#11:2, 2#11:2>>,
 	% TX DM
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, DM}),
 	{next_state, tei_assigned, StateData};
 % ref:  ETS 300 125 Figure B-4/Q.921 (2 of 2) 
 tei_assigned({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7, % Address
-		2#11:2, 2#00:2, 1:1, 2#011:3>>},    % Command (UA)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#011:3, 1:1, 2#00:2, 2#11:2>>},   % Command (UA)
 		StateData) ->
 	% F=1? (yes)
 	% MDL ERROR indication (C)
 	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'C'}),
 	{next_state, tei_assigned, StateData};
 tei_assigned({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#00:2, 0:1, 2#011:3>>},     % Command (UA)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#011:3, 0:1, 2#00:2, 2#11:2>>},   % Command (UA)
 		StateData) ->
 	% F=1? (no)
 	% MDL ERROR indication (D)
 	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'D'}),
 	{next_state, tei_assigned, StateData};
 tei_assigned({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#11:2, 1:1, 2#000:3>>},     % Command (DM)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#000:3, 1:1, 2#11:2, 2#11:2>>},   % Command (DM)
 		StateData) ->
 	% F=1? (yes)
 	{next_state, tei_assigned, StateData};
 tei_assigned({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#11:2, 0:1, 2#000:3>>},     % Command (DM)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#000:3, 0:1, 2#11:2, 2#11:2>>},   % Command (DM)
 		StateData) when StateData#state.establishable == false ->
 	% F=1? (no)
 	% Able to establish? (no)
 	{next_state, tei_assigned, StateData};
 tei_assigned({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#11:2, 0:1, 2#000:3>>},     % Command (DM)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#000:3, 0:1, 2#11:2, 2#11:2>>},   % Command (DM)
 		StateData) ->
 	% F=1? (no)
 	% Able to establish? (yes)
@@ -264,14 +264,14 @@ tei_assigned({'DL', 'UNIT DATA', request, Data}, StateData) when is_binary(Data)
 		_ -> CR = 0
 	end,
 	% P=0
-	UI = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, (StateData#state.tei):7,
-			2#11:2, 2#00:2, 0:1, 2#000:3, Data/binary>>,
+	UI = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
+			2#000:3, 0:1, 2#00:2, 2#11:2, Data/binary>>,
 	% TX UI
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UI}),
 	{next_state, tei_assigned, StateData};
 tei_assigned({'PH', 'DATA', indication, 
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#00:2, _P:1, 2#000:3,       % Command (UI)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#000:3, _P:1, 2#00:2, 2#11:2,     % Command (UI)
 		Data/binary>>},                    % Information
 		StateData) ->
 	% DL UNIT DATA indication
@@ -321,40 +321,40 @@ awaiting_establishment({'PH', 'DEACTIVATION', indication, _PhParms}, StateData) 
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_assigned, NewStateData#state{t200_ref = undefined}};
 awaiting_establishment({'PH', 'DATA', indication,
-		<<0:1, CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#11:2, _P:1, 2#011:3>>},   % Command (SABME)
+		<<_SAPI:6, CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#011:3, _P:1, 2#11:2, 2#11:2>>},   % Command (SABME)
 		StateData) when StateData#state.role == network, CR == 1 ->  % Network/User side mismatch
 	{next_state, awaiting_establishment, StateData};
 awaiting_establishment({'PH', 'DATA', indication,
-		<<0:1, CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#11:2, _P:1, 2#011:3>>},   % Command (SABME)
+		<<_SAPI:6, CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#011:3, _P:1, 2#11:2, 2#11:2>>},   % Command (SABME)
 		StateData) when StateData#state.role == user , CR == 0 ->  % Network/User side mismatch
 	{next_state, awaiting_establishment, StateData};
 awaiting_establishment({'PH', 'DATA', indication,
-		<<0:1, CR:1, SAPI:6, 1:1, TEI:7,    % Address
-		2#11:2, 2#11:2, P:1, 2#011:3>>},    % Command (SABME)
+		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
+		2#011:3, P:1, 2#11:2, 2#11:2>>},   % Command (SABME)
 		StateData) ->
 	OutCR = 1 band bnot CR,
-	UA = <<0:1, OutCR:1, SAPI:6, 1:1, TEI:7, 2#11:2, 2#00:2, P:1, 2#011:3>>,
+	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	% F=P
 	% TX UA
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
 	{next_state, awaiting_establishment, StateData};
 % ref:  ETS 300 125 Figure B-5/Q.921 (2 of 3) 
 awaiting_establishment({'PH', 'DATA', indication,
-		<<0:1, CR:1, SAPI:6, 1:1, TEI:7,    % Address
-		2#11:2, 2#00:2, P:1, 2#010:3>>},    % Command (DISC)
+		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
+		2#010:3, P:1, 2#00:2, 2#11:2>>},   % Command (DISC)
 		StateData) ->
 	OutCR = 1 band bnot CR,
 	% F=P
 	% TX UA
-	UA = <<0:1, OutCR:1, SAPI:6, 1:1, TEI:7, 2#11:2, 2#00:2, P:1, 2#011:3>>,
+	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
 	{next_state, awaiting_establishment, StateData};
 % ref:  ETS 300 125 Figure B-4/Q.921 (2 of 2) 
 awaiting_establishment({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7, % Address
-		2#11:2, 2#00:2, 1:1, 2#011:3>>},    % Command (UA)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#011:3, 1:1, 2#00:2, 2#11:2>>},   % Command (UA)
 		StateData) when StateData#state.layer3_initiated == true ->
 	% F=1? (yes)
 	% Layer 3 initiated? (yes)
@@ -369,8 +369,8 @@ awaiting_establishment({'PH', 'DATA', indication,
 			'V(S)' = 0, 'V(A)' = 0, 'V(R)' = 0},
 	{next_state, multiple_frame_established, NewStateData};
 awaiting_establishment({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7, % Address
-		2#11:2, 2#00:2, 1:1, 2#011:3>>},    % Command (UA)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#011:3, 1:1, 2#00:2, 2#11:2>>},   % Command (UA)
 		StateData) ->
 	% F=1? (yes)
 	% Layer 3 initiated? (no)
@@ -395,16 +395,16 @@ awaiting_establishment({'PH', 'DATA', indication,
 			'V(S)' = 0, 'V(A)' = 0, 'V(R)' = 0},
 	{next_state, multiple_frame_established, NewStateData};
 awaiting_establishment({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7, % Address
-		2#11:2, 2#00:2, 0:1, 2#011:3>>},    % Command (UA)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#011:3, 0:1, 2#00:2, 2#11:2>>},   % Command (UA)
 		StateData) ->
 	% F=1? (no)
 	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'D'}),
 	{next_state, awaiting_establishment, StateData};
 % ref:  ETS 300 125 Figure B-5/Q.921 (2 of 3) 
 awaiting_establishment({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7, % Address
-		2#11:2, 2#11:2, 1:1, 2#000:3>>},     % Command (DM)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#000:3, 1:1, 2#11:2, 2#11:2>>},   % Command (DM)
 		StateData) ->
 	% F=1? (yes)
 	% Discard I queue
@@ -415,8 +415,8 @@ awaiting_establishment({'PH', 'DATA', indication,
 	cancel_timer(NewStateData#state.t200),
 	{next_state, tei_assigned, NewStateData#state{t200_ref = undefined}};
 awaiting_establishment({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7, % Address
-		2#11:2, 2#11:2, 0:1, 2#000:3>>},     % Command (DM)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#000:3, 0:1, 2#11:2, 2#11:2>>},   % Command (DM)
 		StateData) when StateData#state.establishable == false ->
 	% F=1? (no)
 	{next_state, awaiting_establishment, StateData};
@@ -439,7 +439,7 @@ awaiting_establishment(t200_expired, StateData)  ->
 		_ -> CR = 0
 	end,
 	% P=1
-	SABME = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, (StateData#state.tei):7,  2#11:2, 2#11:2, 1:1, 2#011:3>>,
+	SABME = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1, 2#011:3, 1:1, 2#11:2, 2#11:2>>,
 	% TX SABME
 	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, SABME}),
 	% Start T200
@@ -459,14 +459,14 @@ awaiting_establishment({'DL', 'UNIT DATA', request, Data}, StateData) when is_bi
 		_ -> CR = 0
 	end,
 	% P=0
-	UI = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, (StateData#state.tei):7,
-			2#11:2, 2#00:2, 0:1, 2#000:3, Data/binary>>,
+	UI = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
+			2#000:3, 0:1, 2#00:2, 2#11:2, Data/binary>>,
 	% TX UI
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UI}),
 	{next_state, awaiting_establishment, StateData};
 awaiting_establishment({'PH', 'DATA', indication, 
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#00:2, _P:1, 2#000:3,       % Command (UI)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#000:3, _P:1, 2#00:2, 2#11:2,     % Command (UI)
 		Data/binary>>},                    % Information
 		StateData) ->
 	% DL UNIT DATA indication
@@ -507,28 +507,28 @@ awaiting_release({'PH', 'DEACTIVATION', indication, _PhParms}, StateData) ->
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_assigned, NewStateData#state{t200_ref = undefined}};
 awaiting_release({'PH', 'DATA', indication,
-		<<0:1, CR:1, SAPI:6, 1:1, TEI:7,    % Address
-		2#11:2, 2#11:2, P:1, 2#011:3>>},    % Command (SABME)
+		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
+		2#011:3, P:1, 2#11:2, 2#11:2>>},   % Command (SABME)
 		StateData) ->
 	OutCR = 1 band bnot CR,
 	% F=P
-	DM = <<0:1, OutCR:1, SAPI:6, 1:1, TEI:7, 2#11:2, 2#11:2, P:1, 2#000:3>>,
+	DM = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#000:3, P:1, 2#11:2, 2#11:2>>,
 	% TX DM
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, DM}),
 	{next_state, awaiting_release, StateData};
 awaiting_release({'PH', 'DATA', indication,
-		<<0:1, CR:1, SAPI:6, 1:1, TEI:7,    % Address
-		2#11:2, 2#00:2, P:1, 2#010:3>>},    % Command (DISC)
+		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
+		2#010:3, P:1, 2#00:2, 2#11:2>>},   % Command (DISC)
 		StateData) ->
 	OutCR = 1 band bnot CR,
 	% F=P
 	% TX UA
-	UA = <<0:1, OutCR:1, SAPI:6, 1:1, TEI:7, 2#11:2, 2#00:2, P:1, 2#011:3>>,
+	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
 	{next_state, awaiting_release, StateData};
 awaiting_release({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#00:2, 1:1, 2#011:3>>},     % Command (UA)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#011:3, 1:1, 2#00:2, 2#11:2>>},   % Command (UA)
 		StateData) ->
 	% F=1? (yes)
 	% DL RELEASE confirm
@@ -537,8 +537,8 @@ awaiting_release({'PH', 'DATA', indication,
 	cancel_timer(StateData#state.t200_ref),
 	{next_state, tei_assigned, StateData#state{t200_ref = undefined}};
 awaiting_release({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#00:2, 0:1, 2#011:3>>},     % Command (UA)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#011:3, 0:1, 2#00:2, 2#11:2>>},   % Command (UA)
 		StateData) ->
 	% F=1? (no)
 	% MDL ERROR (D) indication
@@ -546,8 +546,8 @@ awaiting_release({'PH', 'DATA', indication,
 	{next_state, awaiting_release, StateData};
 % ref:  ETS 300 125 Figure B-6/Q.921 (2 of 2) 
 awaiting_release({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#11:2, 1:1, 2#000:3>>},     % Command (DM)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#000:3, 1:1, 2#11:2, 2#11:2>>},   % Command (DM)
 		StateData) ->
 	% F=1? (yes)
 	% DL RELEASE confirm
@@ -556,8 +556,8 @@ awaiting_release({'PH', 'DATA', indication,
 	cancel_timer(StateData#state.t200_ref),
 	{next_state, tei_assigned, StateData#state{t200_ref = undefined}};
 awaiting_release({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#11:2, 0:1, 2#000:3>>},     % Command (DM)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#000:3, 0:1, 2#11:2, 2#11:2>>},   % Command (DM)
 		StateData) ->
 	% F=1? (no)
 	{next_state, awaiting_release, StateData};
@@ -578,7 +578,7 @@ awaiting_release(t200_expiry, StateData) ->
 		_ -> CR = 0
 	end,
 	% P=1
-	DISC = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, (StateData#state.tei):7, 2#11:2, 2#00:2, 1:1, 2#010:3>>,
+	DISC = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1, 2#010:3, 1:1, 2#00:2, 2#11:2>>,
 	% TX DISC
 	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, DISC}),
 	% Start T200
@@ -591,13 +591,14 @@ awaiting_release({'DL', 'UNIT DATA', request, Data}, StateData) when is_binary(D
 		_ -> CR = 0
 	end,
 	% P=0
-	UI = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, (StateData#state.tei):7, 2#11:2, 2#00:2, 0:1, 2#000:3, Data/binary>>,
+	UI = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
+			2#000:3, 0:1, 2#00:2, 2#11:2, Data/binary>>,
 	% TX UI
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UI}),
 	{next_state, awaiting_release, StateData};
 awaiting_release({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#00:2, _P:1, 2#000:3,       % Command (UI)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#000:3, _P:1, 2#00:2, 2#11:2,     % Command (UI)
 		Data/binary>>},                    % Information
 		StateData) ->
 	% DL UNIT DATA indication
@@ -636,7 +637,7 @@ multiple_frame_established({'DL', 'RELEASE', request, _DlParms}, StateData) ->
 		_ -> CR = 0
 	end,
 	% P=1
-	DISC = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, (StateData#state.tei):7, 2#11:2, 2#00:2, 1:1, 2#010:3>>,
+	DISC = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1, 2#010:3, 1:1, 2#00:2, 2#11:2>>,
 	% TX DISC
 	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, DISC}),
 	% Stop T203
@@ -704,12 +705,12 @@ multiple_frame_established({'PH', 'DEACTIVATION', indication, _PhParms}, StateDa
 			NewStateData#state{t200_ref = undefined, t203_ref = undefined}};
 % ref:  ETS 300 125 Figure B-7/Q.921 (3 of 10) 
 multiple_frame_established({'PH', 'DATA', indication,
-		<<0:1, CR:1, SAPI:6, 1:1, TEI:7,    % Address
-		2#11:2, 2#11:2, P:1, 2#011:3>>},    % Command (SABME)
+		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
+		2#011:3, P:1, 2#11:2, 2#11:2>>},   % Command (SABME)
 		StateData) ->
 	OutCR = 1 band bnot CR,
 	% F=P
-	UA = <<0:1, OutCR:1, SAPI:6, 1:1, TEI:7, 2#11:2, 2#00:2, P:1, 2#011:3>>,
+	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	% TX UA
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
 	% Clear exception consitions
@@ -737,14 +738,14 @@ multiple_frame_established({'PH', 'DATA', indication,
 			NewStateData#state{t200_ref = undefined, t203_ref = T203_ref,
 			'V(S)' = 0, 'V(A)' = 0, 'V(R)' = 0}};
 multiple_frame_established({'PH', 'DATA', indication,
-		<<0:1, CR:1, SAPI:6, 1:1, TEI:7,    % Address
-		2#11:2, 2#00:2, P:1, 2#010:3>>},    % Command (DISC)
+		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
+		2#010:3, P:1, 2#00:2, 2#11:2>>},   % Command (DISC)
 		StateData) ->
 	OutCR = 1 band bnot CR,
 	% Discard I queues
 	NewStateData = StateData#state{i_queue = []},
 	% F=P
-	UA = <<0:1, OutCR:1, SAPI:6, 1:1, TEI:7, 2#11:2, 2#00:2, P:1, 2#011:3>>,
+	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	% TX UA
 	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, UA}),
 	% DL RELEASE indication
@@ -755,31 +756,31 @@ multiple_frame_established({'PH', 'DATA', indication,
 	cancel_timer(NewStateData#state.t203),
 	{next_state, tei_assigned, NewStateData#state{t200_ref = undefined, t203_ref = undefined}};
 multiple_frame_established({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7, % Address
-		2#11:2, 2#00:2, 1:1, 2#011:3>>},    % Command (UA)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#011:3, 1:1, 2#00:2, 2#11:2>>},   % Command (UA)
 		StateData) ->
 	% MDL ERROR indication (C)
 	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'C'}),
 	{next_state, multiple_frame_established, StateData};
 multiple_frame_established({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7, % Address
-		2#11:2, 2#00:2, 0:1, 2#011:3>>},    % Command (UA)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#011:3, 0:1, 2#00:2, 2#11:2>>},   % Command (UA)
 		StateData) ->
 	% MDL ERROR indication (D)
 	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'D'}),
 	{next_state, multiple_frame_established, StateData};
 % ref:  ETS 300 125 Figure B-7/Q.921 (4 of 10) 
 multiple_frame_established({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#11:2, 1:1, 2#000:3>>},     % Command (DM)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#000:3, 1:1, 2#11:2, 2#11:2>>},   % Command (DM)
 		StateData) ->
 	% F=1? (yes)
 	% MDL ERROR indication (B)
 	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'B'}),
 	{next_state, multiple_frame_established, StateData};
 multiple_frame_established({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#11:2, 0:1, 2#000:3>>},     % Command (DM)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#000:3, 0:1, 2#11:2, 2#11:2>>},   % Command (DM)
 		StateData) ->
 	% F=1? (no)
 	% MDL ERROR indication (E)
@@ -799,8 +800,8 @@ multiple_frame_established(set_own_receiver_busy, StateData) ->
 		_ -> CR = 1
 	end,
 	% F=0
-	RNR = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, (StateData#state.tei):7, 
-			1:1, 2#0000010:7, 0:1, (StateData#state.'V(R)'):7>>,
+	RNR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
+			2#0000010:7, 1:1, (StateData#state.'V(R)'):7, 0:1>>,
 	% TX RNR response
 	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, RNR}),
 	{next_state, multiple_frame_established, NewStateData};
@@ -813,8 +814,8 @@ multiple_frame_established(clear_own_receiver_busy, StateData) when StateData#st
 		_ -> CR = 1
 	end,
 	% F=0
-	RR = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, (StateData#state.tei):7,
-			1:1, 2#0000000:7, 0:1, (StateData#state.'V(R)'):7>>,
+	RR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
+			2#0000000:7, 1:1, (StateData#state.'V(R)'):7, 0:1>>,
 	% TX RR response
 	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, RR}),
 	{next_state, multiple_frame_established, NewStateData};
@@ -822,8 +823,8 @@ multiple_frame_established(clear_own_receiver_busy, StateData) ->
 	{next_state, multiple_frame_established, StateData};
 % ref:  ETS 300 125 Figure B-7/Q.921 (5 of 10) 
 multiple_frame_established({'PH', 'DATA', indication,
-		<<0:1, CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		1:1, 2#0000000:7, PF:1, NR:7>>},    % Command (RR)
+		<<_SAPI:6, CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#0000000:7, 1:1, NR:7, PF:1>>},   % Command (RR)
 		StateData) ->
 	% Clear peer receiver busy
 	NextStateData = transmit_iqueue(StateData#state{peer_receiver_busy = false}),
@@ -878,8 +879,8 @@ multiple_frame_established({'PH', 'DATA', indication,
 			{next_state, awaiting_establishment, nr_error_recovery(NextStateData2)}
 	end;
 multiple_frame_established({'PH', 'DATA', indication,
-		<<0:1, CR:1, _SAPI:6, 1:1, _TEI:7,   % Address
-		1:1, 2#0000100:7, PF:1, NR:7>>},     % Command (REJ)
+		<<_SAPI:6, CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#0000100:7, 1:1, NR:7, PF:1>>},     % Command (REJ)
 		StateData) ->
 	% Clear peer receiver busy
 	NextStateData = transmit_iqueue(StateData#state{peer_receiver_busy = false}),
@@ -926,8 +927,8 @@ multiple_frame_established({'PH', 'DATA', indication,
 	end;
 % ref:  ETS 300 125 Figure B-7/Q.921 (7 of 10) 
 multiple_frame_established({'PH', 'DATA', indication,
-		<<0:1, CR:1, _SAPI:6, 1:1, _TEI:7,   % Address
-		1:1, 2#0000010:7, PF:1, NR:7>>},     % Command (RNR)
+		<<_SAPI:6, CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#0000010:7, 1:1, NR:7, PF:1>>},     % Command (RNR)
 		StateData) ->
 	% Set peer receiver busy
 	NextStateData = transmit_iqueue(StateData#state{peer_receiver_busy = false}),
@@ -971,8 +972,8 @@ multiple_frame_established({'PH', 'DATA', indication,
 			{next_state, awaiting_establishment, nr_error_recovery(NextStateData2)}
 	end;
 multiple_frame_established({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7,   % Address
-		2#11:2, 2#01:2, _F:1, 2#100:3>>},   % Command (FRMR)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#100:3, _F:1, 2#01:2, 2#11:2>>},   % Command (FRMR)
 		StateData) ->
 	% MDL ERROR indication (K)
 	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'K'}),
@@ -982,8 +983,8 @@ multiple_frame_established({'PH', 'DATA', indication,
 	{next_state, awaiting_establishment, NewStateData#state{layer3_initiated = false}};
 % ref:  ETS 300 125 Figure B-7/Q.921 (8 of 10) 
 multiple_frame_established({'PH', 'DATA', indication,
-		<<0:1, CR:1, SAPI:6, 1:1, TEI:7,   % Address
-		0:1, NS:7, P:1, NR:7,              % Command (I)
+		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
+		NS:7, 0:1, NR:7, P:1,              % Command (I)
 		Data/binary>>}, StateData) ->
 	VA = StateData#state.'V(A)',
 	VS = StateData#state.'V(S)',
@@ -996,7 +997,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 				1 ->
 					OutCR = 1 band bnot CR,
 					% F=1
-					RNR = <<0:1, OutCR:1, SAPI:6, 1:1, TEI:7, 1:1, 2#0000010:7, 1:1, (StateData#state.'V(R)'):7>>,
+					RNR = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#0000010:7, 1:1, (StateData#state.'V(R)'):7, 1:1>>,
 					% TX RNR
 					gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RNR}),
 					% Clear acknowledge pending
@@ -1018,7 +1019,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 						1 ->
 							OutCR = 1 band bnot CR,
 							% F=P
-							RNR = <<0:1, OutCR:1, SAPI:6, 1:1, TEI:7, 1:1, 2#0000010:7, P:1, NewVR:7>>,
+							RNR = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#0000010:7, 1:1, NewVR:7, P:1>>,
 							% TX RNR
 							gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RNR}),
 							% Clear acknowledge pending
@@ -1047,7 +1048,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 								1 ->
 									OutCR = 1 band bnot CR,
 									% F=P
-									RR = <<0:1, OutCR:1, SAPI:6, 1:1, TEI:7, 1:1, 2#0000000:7, P:1, (StateData#state.'V(R)'):7>>,
+									RR = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#0000000:7, 1:1, (StateData#state.'V(R)'):7, P:1>>,
 									% TX RR
 									gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RR}),
 									% Clear acknowledge pending
@@ -1058,7 +1059,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 						_ ->
 							OutCR = 1 band bnot CR,
 							% F=P
-							REJ = <<0:1, OutCR:1, SAPI:6, 1:1, TEI:7, 1:1, 2#0000100:7, P:1, (StateData#state.'V(R)'):7>>,
+							REJ = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#0000100:7, 1:1, (StateData#state.'V(R)'):7, P:1>>,
 							% TX REJ
 							gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, REJ}),
 							% Set reject exception
@@ -1118,8 +1119,8 @@ multiple_frame_established('ACKNOWLEDGE PENDING', StateData)
 		_ -> CR = 1
 	end,
 	% F=0
-	RR = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, (StateData#state.tei):7,
-			1:1, 2#0000000:7, 0:1, (StateData#state.'V(R)'):7>>,
+	RR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
+			2#0000000:7, 1:1, (StateData#state.'V(R)'):7, 0:1>>,
 	% TX RR
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RR}),
 	% Clear acknowledge pending
@@ -1135,14 +1136,14 @@ multiple_frame_established({'DL', 'UNIT DATA', request, Data}, StateData) when i
 		_ -> CR = 0
 	end,
 	% P=0
-	UI = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, (StateData#state.tei):7,
-			2#11:2, 2#00:2, 0:1, 2#000:3, Data/binary>>,
+	UI = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
+			2#000:3, 0:1, 2#00:2, 2#11:2, Data/binary>>,
 	% TX UI
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UI}),
 	{next_state, multiple_frame_established, StateData};
 multiple_frame_established({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#00:2, _P:1, 2#000:3,       % Command (UI)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#000:3, _P:1, 2#00:2, 2#11:2,     % Command (UI)
 		Data/binary>>},                    % Information
 		StateData) ->
 	% DL UNIT DATA indication
@@ -1182,7 +1183,7 @@ timer_recovery({'DL', 'RELEASE', request, _DlParms}, StateData) ->
 		_ -> CR = 0
 	end,
 	% P=1
-	DISC = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, (StateData#state.tei):7, 2#11:2, 2#00:2, 1:1, 2#010:3>>,
+	DISC = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1, 2#010:3, 1:1, 2#00:2, 2#11:2>>,
 	% TX DISC
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, DISC}),
 	{next_state, awaiting_release, NewStateData};
@@ -1238,12 +1239,12 @@ timer_recovery({'PH', 'DEACTIVATE', indication, _PhParms}, StateData) ->
 	{next_state, tei_assigned, NewStateData#state{t200_ref = undefined}};
 % ref:  ETS 300 125 Figure B-8/Q.921 (3 of 9) 
 timer_recovery({'PH', 'DATA', indication,
-		<<0:1, CR:1, SAPI:6, 1:1, TEI:7,   % Address
-      2#11:2, 2#11:2, P:1, 2#011:3>>},   % Command (SABME)
+		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
+		2#011:3, P:1, 2#11:2, 2#11:2>>},   % Command (SABME)
 		StateData) ->
 	OutCR = 1 band bnot CR,
 	% F=P
-	UA = <<0:1, OutCR:1, SAPI:6, 1:1, TEI:7, 2#11:2, 2#00:2, P:1, 2#011:3>>,
+	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	% TX UA
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
 	% Clear exception conditions
@@ -1269,14 +1270,14 @@ timer_recovery({'PH', 'DATA', indication,
 	{next_state, multiple_frame_estabslihed, NewStateData#state{t200_ref = undefined,
 			t203_ref = T203_ref, 'V(S)' = 0, 'V(A)' = 0, 'V(R)' = 0}};
 timer_recovery({'PH', 'DATA', indication,
-		<<0:1, CR:1, SAPI:6, 1:1, TEI:7,    % Address
-		2#11:2, 2#00:2, P:1, 2#010:3>>},    % Command (DISC)
+		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
+		2#010:3, P:1, 2#00:2, 2#11:2>>},   % Command (DISC)
 		StateData) ->
 	OutCR = 1 band bnot CR,
 	% Discard I queue
 	NewStateData = StateData#state{i_queue = []},
 	% F=P
-	UA = <<0:1, OutCR:1, SAPI:6, 1:1, TEI:7, 2#11:2, 2#00:2, P:1, 2#011:3>>,
+	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	% TX UA
 	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, UA}),
 	% DL RELEASE indication
@@ -1285,16 +1286,16 @@ timer_recovery({'PH', 'DATA', indication,
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_assigned, NewStateData#state{t200_ref = undefined}};
 timer_recovery({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#00:2, 1:1, 2#011:3>>},     % Command (UA)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#011:3, 1:1, 2#00:2, 2#11:2>>},   % Command (UA)
 		StateData) ->
 	% F=1? (yes)
 	% MDL ERROR indication (C)
 	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'C'}),
 	{next_state, timer_recovery, StateData};
 timer_recovery({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#00:2, 0:1, 2#011:3>>},     % Command (UA)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#011:3, 0:1, 2#00:2, 2#11:2>>},   % Command (UA)
 		StateData) ->
 	% F=1? (no)
 	% MDL ERROR indication (D)
@@ -1302,8 +1303,8 @@ timer_recovery({'PH', 'DATA', indication,
 	{next_state, timer_recovery, StateData};
 % ref:  ETS 300 125 Figure B-8/Q.921 (4 of 9) 
 timer_recovery({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#11:2, 1:1, 2#000:3>>},     % Command (DM) 
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#000:3, 1:1, 2#11:2, 2#11:2>>},   % Command (DM)
 		StateData) ->
 	% F=1? (yes)
 	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'B'}),
@@ -1312,8 +1313,8 @@ timer_recovery({'PH', 'DATA', indication,
 	% Clear layer 3 initiated
 	{next_state, awaiting_establishment, NewStateData#state{layer3_initiated = false}};
 timer_recovery({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		2#11:2, 2#11:2, 0:1, 2#000:3>>},     % Command (DM) 
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#000:3, 0:1, 2#11:2, 2#11:2>>},   % Command (DM)
 		StateData) ->
 	% F=1? (no)
 	% MDL ERROR indication (E)
@@ -1331,8 +1332,8 @@ timer_recovery('SET OWN RECEIVER BUSY', StateData) ->
 		_ -> CR = 1
 	end,
 	% F=0
-	RNR = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, (StateData#state.tei):7,
-			1:1, 2#0000010:7, 0:1, (StateData#state.'V(R)'):7>>,
+	RNR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
+			2#0000010:7, 1:1, (StateData#state.'V(R)'):7, 0:1>>,
 	% TX RNR response
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RNR}),
 	% Set own receiver busy
@@ -1348,8 +1349,8 @@ timer_recovery('CLEAR OWN RECEIVER BUSY', StateData)  ->
 		_ -> CR = 1
 	end,
 	% F=0
-	RR = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, (StateData#state.tei):7,
-			1:1, 2#0000000:7, 0:1, (StateData#state.'V(R)'):7>>,
+	RR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
+			2#0000000:7, 1:1, (StateData#state.'V(R)'):7, 0:1>>,
 	% TX RR response
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RR}),
 	% Clear own receiver busy
@@ -1358,8 +1359,8 @@ timer_recovery('CLEAR OWN RECEIVER BUSY', StateData)  ->
 	{next_state, timer_recovery, NewStateData};
 % ref:  ETS 300 125 Figure B-8/Q.921 (5 of 9) 
 timer_recovery({'PH', 'DATA', indication,
-		<<0:1, CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		1:1, Command:7, P:1, NR:7>>},       % Command
+		<<_SAPI:6, CR:1, 0:1, _TEI:7, 1:1,   % Address
+		Command:7, 1:1, NR:7, P:1>>},        % Command
 		StateData) when
 		StateData#state.role == network, CR == 0, Command == 2#0000000;   % Network side Command (RR) 
 		StateData#state.role /= network, CR == 1, Command == 2#0000000;   % User side Command (RR)
@@ -1385,8 +1386,8 @@ timer_recovery({'PH', 'DATA', indication,
 			{next_state, awaiting_establishment, nr_error_recovery(NewStateData)}
 	end;
 timer_recovery({'PH', 'DATA', indication,
-		<<0:1, CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		1:1, Response:7, F:1, NR:7>>},      % Response
+		<<_SAPI:6, CR:1, 0:1, _TEI:7, 1:1,   % Address
+		Response:7, 1:1, NR:7, F:1>>},       % Response
 		StateData) when
 		StateData#state.role == network, CR == 1, Response == 2#0000000;   % Network side Response (RR) 
 		StateData#state.role /= network, CR == 0, Response == 2#0000000;   % User side Response (RR)
@@ -1418,8 +1419,8 @@ timer_recovery({'PH', 'DATA', indication,
 	end;
 % ref:  ETS 300 125 Figure B-8/Q.921 (6 of 9) 
 timer_recovery({'PH', 'DATA', indication,
-		<<0:1, CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		1:1, Command:7, P:1, NR:7>>},       % Command
+		<<_SAPI:6, CR:1, 0:1, _TEI:7, 1:1,   % Address
+		Command:7, 1:1, NR:7, P:1>>},        % Command
 		StateData) when
 		StateData#state.role == network, CR == 0, Command == 2#0000010;   % Network side Command (RNR) 
 		StateData#state.role /= network, CR == 1, Command == 2#0000010 -> % User side Command (RNR)
@@ -1443,8 +1444,8 @@ timer_recovery({'PH', 'DATA', indication,
 			{next_state, awaiting_establishment, nr_error_recovery(NewStateData)}
 	end;
 timer_recovery({'PH', 'DATA', indication,
-		<<0:1, CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
-		1:1, Response:7, F:1, NR:7>>},      % Response
+		<<_SAPI:6, CR:1, 0:1, _TEI:7, 1:1,   % Address
+		Response:7, 1:1, NR:7, F:1>>},       % Response
 		StateData) when
 		StateData#state.role == network, CR == 0, Response == 2#0000010;   % Network side Response (RNR) 
 		StateData#state.role /= network, CR == 1, Response == 2#0000010 -> % User side Response (RNR)
@@ -1472,8 +1473,8 @@ timer_recovery({'PH', 'DATA', indication,
 			{next_state, awaiting_establishment, nr_error_recovery(NextStateData)}
 	end;
 timer_recovery({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7, % Address
-		2#11:2, 2#01:2, _F:1, 2#100:3>>},   % Command (FRMR)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#100:3, _F:1, 2#01:2, 2#11:2>>},     % Command (FRMR)
 		StateData) ->
 	% MDL ERROR indication (K)
 	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'K'}),
@@ -1483,8 +1484,8 @@ timer_recovery({'PH', 'DATA', indication,
 	{next_state, awaiting_establishment, NewStateData#state{layer3_initiated = false}};
 % ref:  ETS 300 125 Figure B-8/Q.921 (7 of 9)
 timer_recovery({'PH', 'DATA', indication,
-		<<0:1, CR:1, SAPI:6, 1:1, TEI:7,   % Address
-		0:1, _NS:7, P:1, NR:7,             % Command (I)
+		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
+		_NS:7, 0:1, NR:7, P:1,              % Command (I)
 		_Data/binary>>}, StateData) when StateData#state.own_receiver_busy == true ->
 	% Own receiver busy? (yes)
 	% Discard Information
@@ -1492,7 +1493,7 @@ timer_recovery({'PH', 'DATA', indication,
 	NextStateData = case P of
 		1 ->
 			% F=1
-			RNR = <<0:1, CR:1, SAPI:6, 1:1, TEI:7, 1:1, 2#0000010:7, 1:1, (StateData#state.'V(R)'):7>>,
+			RNR = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#0000010:7, 1:1, (StateData#state.'V(R)'):7, 1:1>>,
 			% TX RNR
 			gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RNR}),
 			% Clear acknowledge pending		
@@ -1512,8 +1513,8 @@ timer_recovery({'PH', 'DATA', indication,
 			{next_state, awaiting_establishment, nr_error_recovery(NextStateData)}
 	end;
 timer_recovery({'PH', 'DATA', indication,
-		<<0:1, CR:1, SAPI:6, 1:1, TEI:7,   % Address
-		0:1, NS:7, P:1, NR:7,              % Command (I)
+		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
+		NS:7, 0:1, NR:7, P:1,              % Command (I)
 		Data/binary>>}, StateData) when NS == StateData#state.'V(R)' ->
 	% Own receiver busy? (no)
 	% N(S)=V(R)? (yes)
@@ -1527,7 +1528,7 @@ timer_recovery({'PH', 'DATA', indication,
 	NewStateData = case P of
 		1 ->
 			% F=P
-			RR = <<0:1, CR:1, SAPI:6, 1:1, TEI:7, 1:1, 2#0000000:7, P:1, (StateData#state.'V(R)'):7>>,
+			RR = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#0000000:7, 1:1, (StateData#state.'V(R)'):7, P:1>>,
 			% TX RR
 			gen_fsm:send_event(NextStateData#state.mux, {'PH', 'DATA', request, RR}),
 			% Clear acknowledge pending
@@ -1555,8 +1556,8 @@ timer_recovery({'PH', 'DATA', indication,
 			{next_state, awaiting_establishment, nr_error_recovery(NewStateData)}
 	end;
 timer_recovery({'PH', 'DATA', indication,
-		<<0:1, CR:1, SAPI:6, 1:1, TEI:7,   % Address
-		0:1, _NS:7, P:1, NR:7,             % Command (I)
+		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
+		_NS:7, 0:1, NR:7, P:1,              % Command (I)
 		_Data/binary>>}, StateData) when StateData#state.reject_exception == true ->
 	% Own receiver busy? (no)
 	% N(S)=V(R)? (no)
@@ -1566,7 +1567,7 @@ timer_recovery({'PH', 'DATA', indication,
 	NewStateData = case P of
 		1 ->
 			% F=P
-			RR = <<0:1, CR:1, SAPI:6, 1:1, TEI:7, 1:1, 2#0000000:7, P:1, (StateData#state.'V(R)'):7>>,
+			RR = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#0000000:7, 1:1, (StateData#state.'V(R)'):7, P:1>>,
 			% TX RR
 			gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RR}),
 			% Clear acknowledge pending
@@ -1585,8 +1586,8 @@ timer_recovery({'PH', 'DATA', indication,
 			{next_state, awaiting_establishment, nr_error_recovery(NewStateData)}
 	end;
 timer_recovery({'PH', 'DATA', indication,
-		<<0:1, CR:1, SAPI:6, 1:1, TEI:7,   % Address
-		0:1, _NS:7, P:1, NR:7,              % Command (I)
+		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
+		_NS:7, 0:1, NR:7, P:1,              % Command (I)
 		_Data/binary>>}, StateData) ->
 	% Own receiver busy? (no)
 	% N(S)=V(R)? (no)
@@ -1594,7 +1595,7 @@ timer_recovery({'PH', 'DATA', indication,
 	% Reject exception? (no)
 	OutCR = 1 band bnot CR,
 	% F=P
-	REJ = <<0:1, OutCR:1, SAPI:6, 1:1, TEI:7, 1:1, 2#0000100:7, P:1, (StateData#state.'V(R)'):7>>,
+	REJ = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#0000100:7, 1:1, (StateData#state.'V(R)'):7, P:1>>,
 	% TX REJ
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, REJ}),
 	% Clear acknowledge pending
@@ -1619,8 +1620,8 @@ timer_recovery('ACKNOWLEDGE PENDING', StateData)
 		_ -> CR = 1
 	end,
 	% F=0
-	RR = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, (StateData#state.tei):7,
-			1:1, 2#0000000:7, 0:1, (StateData#state.'V(R)'):7>>,
+	RR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
+			2#0000000:7, 1:1, (StateData#state.'V(R)'):7, 0:1>>,
 	NewStateData = StateData#state{acknowledge_pending = false},
 	% TX RR
 	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, RR}),
@@ -1635,14 +1636,14 @@ timer_recovery({'DL', 'UNIT DATA', request, Data}, StateData) when is_binary(Dat
 		_ -> CR = 0
 	end,
 	% P=0
-	UI = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, (StateData#state.tei):7,
-			2#11:2, 2#00:2, 0:1, 2#000:3, Data/binary>>,
+	UI = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
+			2#000:3, 0:1, 2#00:2, 2#11:2, Data/binary>>,
 	% TX UI
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UI}),
 	{next_state, timer_recovery, StateData};
 timer_recovery({'PH', 'DATA', indication,
-		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7,  % Address 
-		2#11:2, 2#00:2, _P:1, 2#000:3,       % Command (UI)
+		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
+		2#000:3, _P:1, 2#00:2, 2#11:2,     % Command (UI)
 		Data/binary>>},                    % Information
 		StateData) ->
 	% DL UNIT DATA indication
@@ -1703,7 +1704,7 @@ establish_data_link(StateData) ->
 		_ -> CR = 0
 	end,
 	% P=1
-	SABME = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, (StateData#state.tei):7,  2#11:2, 2#11:2, 1:1, 2#011:3>>,
+	SABME = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1, 2#011:3, 1:1, 2#11:2, 2#11:2>>,
 	% TX SABME
 	gen_fsm:send_event(NewStateData#state.mux, SABME),
 	% RC=0
@@ -1735,14 +1736,14 @@ transmit_enquiry(StateData) ->
 	case StateData#state.own_receiver_busy of
 		true ->
 			% P=1
-			RNR = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, (StateData#state.tei):7,
-					1:1, 2#0000010:7, 1:1, (StateData#state.'V(R)'):7>>,
+			RNR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7,
+					1:1, 2#0000010:7, 1:1, (StateData#state.'V(R)'):7, 1:1>>,
 			% TX RNR Command
 			gen_fsm:send_event(StateData#state.mux, RNR);
 		_ ->
 			% P=1
-			RR = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, (StateData#state.tei):7,
-					1:1, 2#0000000:7, 1:1, (StateData#state.'V(R)'):7>>,
+			RR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7,
+					1:1, 2#0000000:7, 1:1, (StateData#state.'V(R)'):7, 1:1>>,
 			% TX RR Command
 			gen_fsm:send_event(StateData#state.mux, RR)
 	end,
@@ -1761,14 +1762,14 @@ enquiry_response(StateData) ->
 	case StateData#state.own_receiver_busy of
 		true ->
 			% F=1
-			RNR = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, (StateData#state.tei):7,
-					1:1, 2#0000010:7, 1:1, (StateData#state.'V(R)'):7>>,
+			RNR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7,
+					1:1, 2#0000010:7, 1:1, (StateData#state.'V(R)'):7, 1:1>>,
 			% TX RNR Response
 			gen_fsm:send_event(StateData#state.mux, RNR);
 		_ ->
 			% F=1
-			RR = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, (StateData#state.tei):7,
-					1:1, 2#0000000:7, 1:1, (StateData#state.'V(R)'):7>>,
+			RR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7,
+					1:1, 2#0000000:7, 1:1, (StateData#state.'V(R)'):7, 1:1>>,
 			% TX RR Response
 			gen_fsm:send_event(StateData#state.mux, RR)
 	end,
@@ -1801,8 +1802,8 @@ send_iframes(StateData, [Data|T]) ->
 		_ -> CR = 0
 	end,
 	% P=0
-	I = <<0:1, CR:1, (StateData#state.sapi):6, 1:1,(StateData#state.tei):7, 
-			0:1, (StateData#state.'V(S)'):7, 0:1, (StateData#state.'V(R)'):7, Data/binary>>,
+	I = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
+			(StateData#state.'V(S)'):7, 0:1, (StateData#state.'V(R)'):7, 0:1, Data/binary>>,
 	% TX I
 	gen_fsm:send_event(StateData#state.mux, I),
 	send_iframes(StateData, T).
@@ -1817,8 +1818,8 @@ send_uiframes(StateData, [Data|T]) ->
 		network -> CR = 1;
 		_ -> CR = 0
 	end,
-	UI = <<0:1, CR:1, (StateData#state.sapi):6, 1:1,(StateData#state.tei):7,
-			2#11:2, 2#00:2, 0:1, 2#000:3, Data/binary>>,
+	UI = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
+			2#000:3, 0:1, 2#00:2, 2#11:2, Data/binary>>,
 	% TX UI
 	gen_fsm:send_event(StateData#state.mux, UI),
 	send_uiframes(StateData, T).
