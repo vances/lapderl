@@ -143,15 +143,13 @@ establish_awaiting_tei({'MDL', 'ERROR', response, _Reason}, StateData) ->
 	% Discard UI queue
 	NewStateData = StateData#state{ui_queue = []},
 	% DL RELEASE indication
-	catch gen_fsm:send_event(NewStateData#state.usap,
-			{'DL', 'RELEASE', indication, undefined}),
+	NewStateData#state.usap ! {'DL', 'RELEASE', indication, undefined},
 	{next_state, tei_unassigned, NewStateData};
 establish_awaiting_tei({'PH', 'DEACTIVATE', indication, _PhParms}, StateData) ->
 	% Discard UI queue
 	NewStateData = StateData#state{ui_queue = []},
 	% DL RELEASE indication
-	catch gen_fsm:send_event(NewStateData#state.usap,
-			{'DL', 'RELEASE', indication, undefined}),
+	NewStateData#state.usap ! {'DL', 'RELEASE', indication, undefined},
 	{next_state, tei_unassigned, NewStateData};
 establish_awaiting_tei(Event, StateData) ->
 	error_logger:info_report(["Unhandled message", {module, ?MODULE},
@@ -167,8 +165,7 @@ tei_assigned({'DL', 'ESTABLISH', request, _DlParms}, StateData) ->
 	{next_state, awaiting_establishment, NewStateData#state{layer3_initiated = true}};
 tei_assigned({'DL', 'RELEASE', request, _DlParms}, StateData) ->
 	% DL RELEASE confirm
-	catch gen_fsm:send_event(StateData#state.usap,
-			{'DL', 'RELEASE', confirm, undefined}),
+	StateData#state.usap ! {'DL', 'RELEASE', confirm, undefined},
 	{next_state, tei_assigned, StateData};
 tei_assigned({'MDL', 'REMOVE', request, {_TEI, _CES}}, StateData) ->
 	% Discard UI queue
@@ -208,7 +205,7 @@ tei_assigned({'PH', 'DATA', indication,
 	% Clear exception conditions
 	NextStateData = clear_exception_conditions(StateData),
 	% DL ESTABLISH indication
-	catch gen_fsm:send_event(NextStateData#state.usap, {'DL', 'ESTABLISH', indication, undefined}),
+	NextStateData#state.usap ! {'DL', 'ESTABLISH', indication, undefined},
 	% V(S)=0, V(A)=0, V(R)=0
 	% Start T203
 	cancel_timer(NextStateData#state.t203_ref),
@@ -281,7 +278,7 @@ tei_assigned({'PH', 'DATA', indication,
 		Data/binary>>},                    % Information
 		StateData) ->
 	% DL UNIT DATA indication
-	catch gen_fsm:send_event(StateData#state.usap, {'DL', 'UNIT DATA', indication, Data}),
+	StateData#state.usap ! {'DL', 'UNIT DATA', indication, Data},
 	{next_state, tei_assigned, StateData};
 % ref:  ETS 300 125 Figure B-9/Q.921 (3 of 5) 
 % ref:  ETS 300 125 5.8.5 Frame rejection condition
@@ -314,7 +311,7 @@ awaiting_establishment({'MDL', 'REMOVE', request, {_TEI, _CES}}, StateData) ->
 	% Discard I & UI queues
 	NewStateData = StateData#state{tei = undefined, i_queue = [], ui_queue = []},
 	% DL RELEASE indication
-	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	NewStateData#state.usap ! {'DL', 'RELEASE', indication, undefined},
 	% Stop T200
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_unassigned, NewStateData#state{t200_ref = undefined}};
@@ -322,7 +319,7 @@ awaiting_establishment({'PH', 'DEACTIVATE', indication, _PhParms}, StateData) ->
 	% Disacrd I & UI queues
 	NewStateData = StateData#state{i_queue = [], ui_queue = []},
 	% DL RELEASE indication
-	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	NewStateData#state.usap ! {'DL', 'RELEASE', indication, undefined},
 	% Stop T200
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_assigned, NewStateData#state{t200_ref = undefined}};
@@ -362,7 +359,7 @@ awaiting_establishment({'PH', 'DATA', indication,
 	% F=1? (yes)
 	% Layer 3 initiated? (yes)
 	% DL ESTABLISH confirm
-	catch gen_fsm:send_event(StateData#state.usap, {'DL', 'ESTABLISH', confirm, undefined}),
+	StateData#state.usap ! {'DL', 'ESTABLISH', confirm, undefined},
 	% Stop T200
 	cancel_timer(StateData#state.t200_ref),
 	% Start T203
@@ -385,8 +382,7 @@ awaiting_establishment({'PH', 'DATA', indication,
 			StateData;
 		_ ->
 			% DL ESTABLISH indication
-			catch gen_fsm:send_event(StateData#state.usap,
-					{'DL', 'ESTABLISH', confirm, undefined}),
+			StateData#state.usap ! {'DL', 'ESTABLISH', confirm, undefined},
 			% Discard I queue
 			StateData#state{i_queue = []}
 	end,
@@ -415,7 +411,7 @@ awaiting_establishment({'PH', 'DATA', indication,
 	% Discard I queue
 	NewStateData = StateData#state{i_queue = []},
 	% DL RELEASE indication
-	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	NewStateData#state.usap ! {'DL', 'RELEASE', indication, undefined},
 	% Stop T200
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_assigned, NewStateData#state{t200_ref = undefined}};
@@ -433,7 +429,7 @@ awaiting_establishment(t200_expiry, StateData)
 	% MDL ERROR (G) indication
 	gen_fsm:send_event(NewStateData#state.cme, {'MDL', 'ERROR', indication, 'G'}),
 	% DL RELEASE indication
-	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	NewStateData#state.usap ! {'DL', 'RELEASE', indication, undefined},
 	{next_state, tei_assigned, NewStateData};
 awaiting_establishment(t200_expiry, StateData)  ->
 	% RC=N200? (no)
@@ -475,7 +471,7 @@ awaiting_establishment({'PH', 'DATA', indication,
 		Data/binary>>},                    % Information
 		StateData) ->
 	% DL UNIT DATA indication
-	catch gen_fsm:send_event(StateData#state.usap, {'DL', 'UNIT DATA', indication, Data}),
+	StateData#state.usap ! {'DL', 'UNIT DATA', indication, Data},
 	{next_state, awaiting_establishment, StateData};
 % ref:  ETS 300 125 Figure B-9/Q.921 (3 of 5) 
 % ref:  ETS 300 125 5.8.5 Frame rejection condition
@@ -499,7 +495,7 @@ awaiting_release({'MDL', 'REMOVE', request, {_TEI, _CES}}, StateData) ->
 	% Discard UI queue
 	NewStateData = StateData#state{tei = undefined, ui_queue = []},
 	% DL RELEASE confirm
-	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', confirm, undefined}),
+	NewStateData#state.usap ! {'DL', 'RELEASE', confirm, undefined},
 	% Stop T200
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_unassigned, NewStateData#state{tei = undefined, t200_ref = undefined}};
@@ -507,7 +503,7 @@ awaiting_release({'PH', 'DEACTIVATE', indication, _PhParms}, StateData) ->
 	% Discard UI queue
 	NewStateData = StateData#state{ui_queue = []},
 	% DL RELEASE confirm
-	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', confirm, undefined}),
+	NewStateData#state.usap ! {'DL', 'RELEASE', confirm, undefined},
 	% Stop T200
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_assigned, NewStateData#state{t200_ref = undefined}};
@@ -535,7 +531,7 @@ awaiting_release({'PH', 'DATA', indication,
 		StateData) ->
 	% F=1? (yes)
 	% DL RELEASE confirm
-	catch gen_fsm:send_event(StateData#state.usap, {'DL', 'RELEASE', confirm, undefined}),
+	StateData#state.usap ! {'DL', 'RELEASE', confirm, undefined},
 	% Stop T200
 	cancel_timer(StateData#state.t200_ref),
 	{next_state, tei_assigned, StateData#state{t200_ref = undefined}};
@@ -554,7 +550,7 @@ awaiting_release({'PH', 'DATA', indication,
 		StateData) ->
 	% F=1? (yes)
 	% DL RELEASE confirm
-	catch gen_fsm:send_event(StateData#state.usap, {'DL', 'RELEASE', confirm, undefined}),
+	StateData#state.usap ! {'DL', 'RELEASE', confirm, undefined},
 	% Stop T200
 	cancel_timer(StateData#state.t200_ref),
 	{next_state, tei_assigned, StateData#state{t200_ref = undefined}};
@@ -570,7 +566,7 @@ awaiting_release(t200_expiry, StateData)
 	% MDL ERROR (H) indication
 	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'H'}),
 	% DL RELEASE confirm
-	catch gen_fsm:send_event(StateData#state.usap, {'DL', 'RELEASE', confirm, undefined}),
+	StateData#state.usap ! {'DL', 'RELEASE', confirm, undefined},
 	{next_state, tei_assigned, StateData#state{t200_ref = undefined}};
 awaiting_release(t200_expiry, StateData) ->
 	% RC=N200? (no)
@@ -605,7 +601,7 @@ awaiting_release({'PH', 'DATA', indication,
 		Data/binary>>},                    % Information
 		StateData) ->
 	% DL UNIT DATA indication
-	gen_fsm:send_event(StateData#state.usap, {'DL', 'UNIT DATA', indication, Data}),
+	StateData#state.usap ! {'DL', 'UNIT DATA', indication, Data},
 	{next_state, awaiting_release, StateData};
 % ref:  ETS 300 125 Figure B-9/Q.921 (3 of 5) 
 % ref:  ETS 300 125 5.8.5 Frame rejection condition
@@ -694,7 +690,7 @@ multiple_frame_established({'MDL', 'REMOVE', request, {_TEI, _CES}}, StateData) 
 	% Discard I and UI queues
 	NewStateData = StateData#state{tei = undefined, i_queue = [], ui_queue = []},
 	% DL RELEASE indication
-	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	NewStateData#state.usap ! {'DL', 'RELEASE', indication, undefined},
 	% Stop T200
 	% Stop T203
 	cancel_timer(NewStateData#state.t200_ref),
@@ -704,7 +700,7 @@ multiple_frame_established({'PH', 'DEACTIVATE', indication, _PhParms}, StateData
 	% Discard I and UI queues
 	NewStateData = StateData#state{i_queue = [], ui_queue = []},
 	% DL RELEASE indication
-	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	NewStateData#state.usap ! {'DL', 'RELEASE', indication, undefined},
 	% Stop T200
 	% Stop T203
 	cancel_timer(NewStateData#state.t200_ref),
@@ -732,7 +728,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 		% Discard I queues
 		NewStateData = NextStateData#state{i_queue = []},
 		% DL ESTABLISH indication
-		catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'ESTABLISH', indication, undefined})
+		NewStateData#state.usap ! {'DL', 'ESTABLISH', indication, undefined}
 	end,
 	% Stop T200
 	% Start T203
@@ -754,7 +750,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 	% TX UA
 	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, UA}),
 	% DL RELEASE indication
-	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	NewStateData#state.usap ! {'DL', 'RELEASE', indication, undefined},
 	% Stop T200
 	% Stop T203
 	cancel_timer(NewStateData#state.t200_ref),
@@ -1041,7 +1037,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 					NewVR = (VR + 1) rem 128,
 					% Clear reject exception (deferred to below)
 					% DL DATA indication
-					catch gen_fsm:send_event(StateData#state.usap, {'DL', 'DATA', indication, Data}),
+					StateData#state.usap ! {'DL', 'DATA', indication, Data},
 					% P=1?
 					case P of
 						1 ->
@@ -1147,7 +1143,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 		Data/binary>>},                    % Information
 		StateData) ->
 	% DL UNIT DATA indication
-	gen_fsm:send_event(StateData#state.usap, {'DL', 'UNIT DATA', indication, Data}),
+	StateData#state.usap ! {'DL', 'UNIT DATA', indication, Data},
 	{next_state, multiple_frame_established, StateData};
 % ref:  ETS 300 125 Figure B-9/Q.921 (2 of 5) 
 % ref:  ETS 300 125 5.8.5 Frame rejection condition
@@ -1227,7 +1223,7 @@ timer_recovery({'MDL', 'REMOVE', request, {_TEI, _CES}}, StateData) ->
 	% Discard I and UI queues
 	NewStateData = StateData#state{tei = undefined, i_queue = [], ui_queue = []},
 	% DL RELEASE indication
-	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	NewStateData#state.usap ! {'DL', 'RELEASE', indication, undefined},
 	% Stop T200
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_unassigned, NewStateData#state{t200_ref = undefined}};
@@ -1235,7 +1231,7 @@ timer_recovery({'PH', 'DEACTIVATE', indication, _PhParms}, StateData) ->
 	% Discard I and UI queues
 	NewStateData = StateData#state{i_queue = [], ui_queue = []},
 	% DL RELEASE indication
-	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	NewStateData#state.usap ! {'DL', 'RELEASE', indication, undefined},
 	% Stop T200
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_assigned, NewStateData#state{t200_ref = undefined}};
@@ -1259,7 +1255,7 @@ timer_recovery({'PH', 'DATA', indication,
 			NextStateData;
 		_ ->                                         % false
 			% DL ESTABLISH indication
-			catch gen_fsm:send_event(NextStateData#state.usap, {'DL', 'ESTABLISH', indication, undefined}),
+			NextStateData#state.usap ! {'DL', 'ESTABLISH', indication, undefined},
 			% Discard I queue
 			NextStateData#state{i_queue = []}
 	end,
@@ -1282,7 +1278,7 @@ timer_recovery({'PH', 'DATA', indication,
 	% TX UA
 	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, UA}),
 	% DL RELEASE indication
-	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	NewStateData#state.usap ! {'DL', 'RELEASE', indication, undefined},
 	% Stop T200
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_assigned, NewStateData#state{t200_ref = undefined}};
@@ -1537,7 +1533,7 @@ timer_recovery({'PH', 'DATA', indication,
 	NextStateData = StateData#state{'V(R)' = (StateData#state.'V(R)' + 1) rem 128,
 			reject_exception = false},
 	% DL DATA indication
-	catch gen_fsm:send_event(NextStateData#state.usap, {'DL', 'DATA', indication, Data}),
+	NextStateData#state.usap ! {'DL', 'DATA', indication, Data},
 	% P=1?
 	NewStateData = case P of
 		1 ->
@@ -1633,7 +1629,7 @@ timer_recovery({'PH', 'DATA', indication,
 		Data/binary>>},                    % Information
 		StateData) ->
 	% DL UNIT DATA indication
-	gen_fsm:send_event(StateData#state.usap, {'DL', 'UNIT DATA', indication, Data}),
+	StateData#state.usap ! {'DL', 'UNIT DATA', indication, Data},
 	{next_state, timer_recovery, StateData};
 % ref:  ETS 300 125 Figure B-9/Q.921 (2 of 5) 
 % ref:  ETS 300 125 5.8.5 Frame rejection condition

@@ -66,11 +66,11 @@ information_transfer({'PH', 'DATA', indication,
 	case StateData#state.sapi of
 		63 ->
 			% M <- L2
-			catch gen_fsm:send_event(StateData#state.usap, {'MDL', 'UNIT DATA', indication, Data}),
+			StateData#state.usap ! {'MDL', 'UNIT DATA', indication, Data},
 			{next_state, tei_assigned, StateData};
 		_ ->
 			% L3 <- L2
-			catch gen_fsm:send_event(StateData#state.usap, {'DL', 'UNIT DATA', indication, Data}),
+			StateData#state.usap ! {'DL', 'UNIT DATA', indication, Data},
 			{next_state, tei_assigned, StateData}
 	end;
 information_transfer({'PH', 'DEACTIVATE', indication, _PhParms}, StateData) ->
