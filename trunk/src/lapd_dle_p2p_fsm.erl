@@ -1202,7 +1202,7 @@ timer_recovery(t200_expiry, StateData)
 	% Clear layer 3 initiated
 	{next_state, awaiting_establishment, NewStateData#state{layer3_initiated = false}};
 timer_recovery(t200_expiry, StateData) ->
-	% RC=N200? (yes)
+	% RC=N200? (no)
 	% V(S)=V(A)?
 	VA = StateData#state.'V(A)',
 	case StateData#state.'V(S)' of
