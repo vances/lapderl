@@ -89,7 +89,8 @@ start_link(Module, Args, Options) ->
 			Children = supervisor:which_children(Sup),
 			{value, {lme, LME, _, _}} = lists:keysearch(lme, 1, Children),
 			{value, {mux, MUX, _, _}} = lists:keysearch(mux, 1, Children),
-			gen_server:call(LME, {activate, MUX}),
+			{value, {sap, SapSup, _, _}} = lists:keysearch(sap, 1, Children),
+			gen_server:call(LME, {activate, SapSup, MUX}),
 			{ok, Sup};
 		{error, Reason} ->
 			{error, Reason}
