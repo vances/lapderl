@@ -47,7 +47,7 @@
 %%% 	for received frames to send a primitive event for handling by the
 %%% 	<tt>lapd_mux_fsm</tt> behaviour module:</p>
 %%%
-%%% 	<pre>handle_info({_Port, 'L3L4m', _CtrlBin, _DataBin}, StateName, StateData) -&gt;
+%%% 	<pre>handle_info({_Port, {'L3L4m', _CtrlBin, _DataBin}}, StateName, StateData) -&gt;
 %%% 	     gen_fsm:send_event(self(), {'PH', 'DATA', indication, DataBin}),
 %%% 	     {next_state, StateName, StateData}.
 %%% 	</pre>
@@ -321,7 +321,8 @@ handle_sync_event(Event, From, statename, State) ->
 %% @hidden
 handle_info(Event, statename, State) ->
 	Module = State#lapd_mux_state.module,
-	case Module:handle_info(Event, State#lapd_mux_state.statedata) of
+	StateName = State#lapd_mux_state.statename,
+	case Module:handle_info(Event, StateName, State#lapd_mux_state.statedata) of
 		{next_state, NextStateName, NewStateData} ->
 			NewState = State#lapd_mux_state{statename = NextStateName, statedata = NewStateData},
 			{next_state, statename, NewState};
