@@ -92,7 +92,7 @@ handle_call({'SMAP', 'BIND', request, {DLE, USAP}}, _From, State) ->
 handle_call({activate, MUX}, {Pid, _Tag}, State) ->
 	{value, {role, Role}} = lists:keysearch(role, 1, State#state.options),
 	Options = [{role, Role}],
-	case supervisor:start_child(State#state.sapsup, [[State#state.mux, 63, Options]]) of
+	case supervisor:start_child(State#state.sapsup, [[MUX, 63, Options]]) of
 		{ok, CeSup} ->
 			Children = supervisor:which_children(CeSup),
 			{value, {dle, BDLE, _, _}} = lists:keysearch(dle, 1, Children),
