@@ -79,11 +79,11 @@ await_cme({cme, CME}, StateData) ->
 
 %% ref:  ETS 300 125 Figure B-3/Q.921 (1 of 3) 
 tei_unassigned({'DL', 'ESTABLISH', request, _DlParms}, StateData) ->
-	gen_fsm:send_event(StateData#state.lme,
+	gen_server:cast(StateData#state.lme,
 			{'MDL', 'ASSIGN', indication, {undefined, self()}}),
 	{next_state, establish_awaiting_tei, StateData};
 tei_unassigned({'DL', 'UNIT DATA', request, Data}, StateData) when is_binary(Data) ->
-	gen_fsm:send_event(StateData#state.lme,
+	gen_server:cast(StateData#state.lme,
 			{'MDL', 'ASSIGN', indication, {undefined, self()}}),
 	% UNIT DATA into UI queue
 	NewStateData = StateData#state{ui_queue = StateData#state.ui_queue ++ [Data]},
