@@ -1112,10 +1112,10 @@ multiple_frame_established('ACKNOWLEDGE PENDING', StateData)
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RR}),
 	% Clear acknowledge pending
 	NewStateData = StateData#state{acknowledge_pending = false},
-	{next_state, awaiting_establishment, NewStateData};
+	{next_state, multiple_frame_established, NewStateData};
 multiple_frame_established('ACKNOWLEDGE PENDING', StateData) ->
 	% Acknowledge pending? (no)
-	{next_state, awaiting_establishment, StateData};
+	{next_state, multiple_frame_established, StateData};
 %% ref:  ETS 300 125 Figure B-9/Q.921 (1 of 5) 
 multiple_frame_established({'DL', 'UNIT DATA', request, Data}, StateData) when is_binary(Data) ->
 	case StateData#state.role of
