@@ -57,7 +57,7 @@ handle_call({'SMAP', 'OPEN', request, {SapSup, SAPI, TEI, Options}}, {Pid, _Tag}
 			{value, {dle, DLE, _, _}} = lists:keysearch(dle, 1, Children),
 			gen_fsm:send_event(CME, {dle, DLE}),
 			gen_fsm:send_event(DLE, {cme, CME}),
-			gen_fsm:send_event(State#state.mux, {open, {p2p, SAPI, DLE}}),
+			gen_fsm:send_all_state_event(State#state.mux, {open, {p2p, SAPI, DLE}}),
 			case TEI of
 				X when is_integer(X), X >= 0, X =< 63 ->
 					gen_fsm:send_event(CME, {'MDL', 'ASSIGN', request, {TEI, DLE}}),
