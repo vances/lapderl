@@ -105,7 +105,7 @@ handle_info(_Event, StateName, StateData) ->
 	{next_state, StateName, StateData}.
 
 terminate(_Reason, _StateName, StateData) ->
-	netaccess:close(StateData#state.port).
+	catch netaccess:close(StateData#state.port).
 
 code_change(_OldVersion, StateName, StateData, _Extra) ->
 	{ok, StateName, StateData}.
