@@ -185,8 +185,7 @@ tei_assigned({'PH', 'DATA', indication,
 		2#011:3, P:1, 2#11:2, 2#11:2>>},   % Command (SABME)
 		StateData) when StateData#state.establishable == false ->
 	% able to establish? (no)
-	OutCR = 1 band bnot CR,
-	DM = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#000:3, P:1, 2#11:2, 2#11:2>>,
+	DM = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#000:3, P:1, 2#11:2, 2#11:2>>,
 	% TX DM
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, DM}),
 	{next_state, tei_assigned, StateData};
@@ -195,8 +194,7 @@ tei_assigned({'PH', 'DATA', indication,
 		2#011:3, P:1, 2#11:2, 2#11:2>>},   % Command (SABME)
 		StateData) ->
 	% able to establish? (yes)
-	OutCR = 1 band bnot CR,
-	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
+	UA = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	% TX UA
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
 	% Clear exception conditions
@@ -212,8 +210,7 @@ tei_assigned({'PH', 'DATA', indication,
 		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
 		2#010:3, P:1, 2#00:2, 2#11:2>>},   % Command (DISC)
 		StateData) ->
-	OutCR = 1 band bnot CR,
-	DM = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#000:3, P:1, 2#11:2, 2#11:2>>,
+	DM = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#000:3, P:1, 2#11:2, 2#11:2>>,
 	% TX DM
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, DM}),
 	{next_state, tei_assigned, StateData};
@@ -334,8 +331,7 @@ awaiting_establishment({'PH', 'DATA', indication,
 		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
 		2#011:3, P:1, 2#11:2, 2#11:2>>},   % Command (SABME)
 		StateData) ->
-	OutCR = 1 band bnot CR,
-	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
+	UA = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	% F=P
 	% TX UA
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
@@ -345,10 +341,9 @@ awaiting_establishment({'PH', 'DATA', indication,
 		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
 		2#010:3, P:1, 2#00:2, 2#11:2>>},   % Command (DISC)
 		StateData) ->
-	OutCR = 1 band bnot CR,
 	% F=P
 	% TX UA
-	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
+	UA = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
 	{next_state, awaiting_establishment, StateData};
 % ref:  ETS 300 125 Figure B-4/Q.921 (2 of 2) 
@@ -510,9 +505,8 @@ awaiting_release({'PH', 'DATA', indication,
 		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
 		2#011:3, P:1, 2#11:2, 2#11:2>>},   % Command (SABME)
 		StateData) ->
-	OutCR = 1 band bnot CR,
 	% F=P
-	DM = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#000:3, P:1, 2#11:2, 2#11:2>>,
+	DM = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#000:3, P:1, 2#11:2, 2#11:2>>,
 	% TX DM
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, DM}),
 	{next_state, awaiting_release, StateData};
@@ -520,10 +514,9 @@ awaiting_release({'PH', 'DATA', indication,
 		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
 		2#010:3, P:1, 2#00:2, 2#11:2>>},   % Command (DISC)
 		StateData) ->
-	OutCR = 1 band bnot CR,
 	% F=P
 	% TX UA
-	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
+	UA = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
 	{next_state, awaiting_release, StateData};
 awaiting_release({'PH', 'DATA', indication,
@@ -708,9 +701,8 @@ multiple_frame_established({'PH', 'DATA', indication,
 		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
 		2#011:3, P:1, 2#11:2, 2#11:2>>},   % Command (SABME)
 		StateData) ->
-	OutCR = 1 band bnot CR,
 	% F=P
-	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
+	UA = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	% TX UA
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
 	% Clear exception consitions
@@ -741,11 +733,10 @@ multiple_frame_established({'PH', 'DATA', indication,
 		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
 		2#010:3, P:1, 2#00:2, 2#11:2>>},   % Command (DISC)
 		StateData) ->
-	OutCR = 1 band bnot CR,
 	% Discard I queues
 	NewStateData = StateData#state{i_queue = []},
 	% F=P
-	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
+	UA = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	% TX UA
 	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, UA}),
 	% DL RELEASE indication
@@ -995,9 +986,8 @@ multiple_frame_established({'PH', 'DATA', indication,
 			% P=1?
 			case P of
 				1 ->
-					OutCR = 1 band bnot CR,
 					% F=1
-					RNR = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#0000010:7, 1:1, (StateData#state.'V(R)'):7, 1:1>>,
+					RNR = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#0000010:7, 1:1, (StateData#state.'V(R)'):7, 1:1>>,
 					% TX RNR
 					gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RNR}),
 					% Clear acknowledge pending
@@ -1017,9 +1007,8 @@ multiple_frame_established({'PH', 'DATA', indication,
 					% P=1?
 					case P of
 						1 ->
-							OutCR = 1 band bnot CR,
 							% F=P
-							RNR = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#0000010:7, 1:1, NewVR:7, P:1>>,
+							RNR = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#0000010:7, 1:1, NewVR:7, P:1>>,
 							% TX RNR
 							gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RNR}),
 							% Clear acknowledge pending
@@ -1046,9 +1035,8 @@ multiple_frame_established({'PH', 'DATA', indication,
 							% P=1?
 							case P of
 								1 ->
-									OutCR = 1 band bnot CR,
 									% F=P
-									RR = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#0000000:7, 1:1, (StateData#state.'V(R)'):7, P:1>>,
+									RR = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#0000000:7, 1:1, (StateData#state.'V(R)'):7, P:1>>,
 									% TX RR
 									gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RR}),
 									% Clear acknowledge pending
@@ -1057,9 +1045,8 @@ multiple_frame_established({'PH', 'DATA', indication,
 									StateData
 							end;
 						_ ->
-							OutCR = 1 band bnot CR,
 							% F=P
-							REJ = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#0000100:7, 1:1, (StateData#state.'V(R)'):7, P:1>>,
+							REJ = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#0000100:7, 1:1, (StateData#state.'V(R)'):7, P:1>>,
 							% TX REJ
 							gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, REJ}),
 							% Set reject exception
@@ -1242,9 +1229,8 @@ timer_recovery({'PH', 'DATA', indication,
 		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
 		2#011:3, P:1, 2#11:2, 2#11:2>>},   % Command (SABME)
 		StateData) ->
-	OutCR = 1 band bnot CR,
 	% F=P
-	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
+	UA = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	% TX UA
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
 	% Clear exception conditions
@@ -1273,11 +1259,10 @@ timer_recovery({'PH', 'DATA', indication,
 		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
 		2#010:3, P:1, 2#00:2, 2#11:2>>},   % Command (DISC)
 		StateData) ->
-	OutCR = 1 band bnot CR,
 	% Discard I queue
 	NewStateData = StateData#state{i_queue = []},
 	% F=P
-	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
+	UA = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	% TX UA
 	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, UA}),
 	% DL RELEASE indication
@@ -1593,9 +1578,8 @@ timer_recovery({'PH', 'DATA', indication,
 	% N(S)=V(R)? (no)
 	% Discard information
 	% Reject exception? (no)
-	OutCR = 1 band bnot CR,
 	% F=P
-	REJ = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#0000100:7, 1:1, (StateData#state.'V(R)'):7, P:1>>,
+	REJ = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#0000100:7, 1:1, (StateData#state.'V(R)'):7, P:1>>,
 	% TX REJ
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, REJ}),
 	% Clear acknowledge pending
