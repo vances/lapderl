@@ -21,7 +21,8 @@
 	<p>This application includes only the layer 2 procedures and must be used with a seperate application
 	providing the layer 1 interface.  It is expected that layer 1 will provide HDLC formatting including flag
 	sequences and frame check sequences.  The <b>netaccess</b> application from 
-	<a href="http://www.motivity.ca">Motivity Telecom</a> is one such implementation.</p>
+	<a href="http://www.motivity.ca">Motivity Telecom</a> is one such implementation for which there is
+	an example adaptation module in the examples directory.</p>
 
 	<h3>Process Communication</h3>
 	<p>A number of processes interact to provide the LAPD service. 
@@ -64,6 +65,11 @@
 	the LME and CME processes.  These interfaces are not the subject of standardization and the primitives used
 	here are implementation specific.  The <a href="lapd.html"><tt>lapd</tt></a> module provides the application 
 	programming interface which is used to maintain the service configuration.</p>
+
+	<p>The LAPD serice user should send service primitives to the LAPD service access point directly by 
+	using <tt>gen_fsm:send_event/2</tt>.  For example:</br>
+		<tt>gen_fsm:send_event(DLE, {'DL', 'DATA', request, PDU}</tt>
+	</p>
 
 	<h3>Modules</h3>
 
