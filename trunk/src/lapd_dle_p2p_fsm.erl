@@ -648,20 +648,20 @@ multiple_frame_established({'DL', 'DATA', request, Data}, StateData) when is_bin
 		StateData#state.peer_receiver_busy == true  ->
 	% Peer receiver busy? (yes)
 	NewStateData = StateData#state{i_queue = StateData#state.i_queue ++ [Data]},
-	{next_state, multiple_frame_esatblished, NewStateData};
+	{next_state, multiple_frame_established, NewStateData};
 multiple_frame_established({'DL', 'DATA', request, Data}, StateData) when is_binary(Data) ->
 	% Peer receiver busy? (no)
 	NewStateData = transmit_iqueue(StateData#state{i_queue = StateData#state.i_queue ++ [Data], acknowledge_pending = false}),
 	% T200 Running?
 	case NewStateData#state.t200_ref of
 		T200_ref when is_reference(T200_ref) ->
-			{next_state, multiple_frame_esatblished, NewStateData};
+			{next_state, multiple_frame_established, NewStateData};
 		_ ->
 			% Stop T203
 			% Start T200
 			cancel_timer(NewStateData#state.t203_ref),
 					  T200_ref = gen_fsm:send_event_after(NewStateData#state.t200, t200_expiry),
-			{next_state, multiple_frame_esatblished, 
+			{next_state, multiple_frame_established, 
 					NewStateData#state{t203_ref = undefined, t200 = T200_ref}}
 	end;
 % ref:  ETS 300 125 Figure B-7/Q.921 (2 of 10) 
@@ -1714,8 +1714,8 @@ establish_data_link(StateData) ->
 	% Stop T203
 	cancel_timer(NewStateData#state.t200_ref),
 	cancel_timer(NewStateData#state.t203_ref),
-	T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expiry),
-	NewStateData#state{rc = 0, t200_ref = undefined, t203_ref = T203_ref}.
+	T200_ref = gen_fsm:send_event_after(NewStateData#state.t200, t200_expiry),
+	NewStateData#state{rc = 0, t200_ref = T200_ref, t203_ref = undefined}.
 
 %% ref: ETS 300 125 Figure B-9/Q.921 (4 of 5)
 clear_exception_conditions(StateData) ->
