@@ -16,6 +16,9 @@
 %%%	for the LAPD application.  The application implements the link
 %%% 	access procedures for the D-channel (LAPD) as defined in Q.921.</p>
 %%% @end
+%%%
+%%% @reference <a href="index.html">The LAPD User's Guide</a>
+%%%
          
 -module(lapd).
 -copyright('Copyright (c) 2004 Motivity Telecom Inc.').

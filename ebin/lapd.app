@@ -3,7 +3,7 @@
 		{id,           "LAPD"},
 		{vsn,          "1.0"},
 		{modules,      [lapd_app, lapd_lme_fsm, lapd_cme_fsm,
-		                lapd_multiplex_fsm, lapd_fsm]},
+		                lapd_mux_fsm, lapd_fsm]},
 		{registered,   []},
 		{included_applications, []},
 		{applications, [kernel, stdlib]},

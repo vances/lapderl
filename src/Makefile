@@ -9,7 +9,7 @@ INCLUDES =
 BEAMS = ../ebin/lapd.beam ../ebin/lapd_sup.beam \
 		../ebin/lapd_sap_sup.beam ../ebin/lapd_ce_sup.beam \
 		../ebin/lapd_lme_server.beam ../ebin/lapd_cme_fsm.beam \
-		../ebin/lapd_dle_fsm.beam ../ebin/lapd_multiplex_fsm.beam
+		../ebin/lapd_dle_fsm.beam ../ebin/lapd_mux_fsm.beam
 
 DOCS	= ../doc/html/lapd.html
 
