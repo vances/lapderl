@@ -143,14 +143,14 @@ establish_awaiting_tei({'MDL', 'ERROR', response, _Reason}, StateData) ->
 	% Discard UI queue
 	NewStateData = StateData#state{ui_queue = []},
 	% DL RELEASE indication
-	catch gen_fsm:send_event(StateData#state.usap,
+	catch gen_fsm:send_event(NewStateData#state.usap,
 			{'DL', 'RELEASE', indication, undefined}),
 	{next_state, tei_unassigned, NewStateData};
 establish_awaiting_tei({'PH', 'DEACTIVATE', indication, _PhParms}, StateData) ->
 	% Discard UI queue
 	NewStateData = StateData#state{ui_queue = []},
 	% DL RELEASE indication
-	catch gen_fsm:send_event(StateData#state.usap,
+	catch gen_fsm:send_event(NewStateData#state.usap,
 			{'DL', 'RELEASE', indication, undefined}),
 	{next_state, tei_unassigned, NewStateData};
 establish_awaiting_tei(Event, StateData) ->
@@ -314,7 +314,7 @@ awaiting_establishment({'MDL', 'REMOVE', request, {_TEI, _CES}}, StateData) ->
 	% Discard I & UI queues
 	NewStateData = StateData#state{tei = undefined, i_queue = [], ui_queue = []},
 	% DL RELEASE indication
-	catch gen_fsm:send_event(StateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
 	% Stop T200
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_unassigned, NewStateData#state{t200_ref = undefined}};
@@ -322,7 +322,7 @@ awaiting_establishment({'PH', 'DEACTIVATE', indication, _PhParms}, StateData) ->
 	% Disacrd I & UI queues
 	NewStateData = StateData#state{i_queue = [], ui_queue = []},
 	% DL RELEASE indication
-	catch gen_fsm:send_event(StateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
 	% Stop T200
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_assigned, NewStateData#state{t200_ref = undefined}};
@@ -355,7 +355,6 @@ awaiting_establishment({'PH', 'DATA', indication,
 	UA = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
 	{next_state, awaiting_establishment, StateData};
-% ref:  ETS 300 125 Figure B-4/Q.921 (2 of 2) 
 awaiting_establishment({'PH', 'DATA', indication,
 		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
 		2#011:3, 1:1, 2#00:2, 2#11:2>>},   % Command (UA)
@@ -440,16 +439,16 @@ awaiting_establishment(t200_expiry, StateData)  ->
 	% RC=N200? (no)
 	% RC=RC+1
 	NewStateData = StateData#state{rc = StateData#state.rc + 1, t200_ref = undefined},
-	case StateData#state.role of
+	case NewStateData#state.role of
 		network -> CR = 1;
 		user -> CR = 0
 	end,
 	% P=1
-	SABME = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1, 2#011:3, 1:1, 2#11:2, 2#11:2>>,
+	SABME = <<(NewStateData#state.sapi):6, CR:1, 0:1, (NewStateData#state.tei):7, 1:1, 2#011:3, 1:1, 2#11:2, 2#11:2>>,
 	% TX SABME
 	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, SABME}),
 	% Start T200
-	T200_ref = gen_fsm:send_event_after(StateData#state.t200, t200_expiry),
+	T200_ref = gen_fsm:send_event_after(NewStateData#state.t200, t200_expiry),
 	{next_state, awaiting_establishment, NewStateData#state{t200_ref = T200_ref}};
 awaiting_establishment({'DL', 'DATA', request, Data}, StateData)  when is_binary(Data),
 		StateData#state.layer3_initiated == true ->
@@ -577,12 +576,12 @@ awaiting_release(t200_expiry, StateData) ->
 	% RC=N200? (no)
 	% RC=RC+1
 	NewStateData = StateData#state{rc = StateData#state.rc + 1, t200_ref = undefined},
-	case StateData#state.role of
+	case NewStateData#state.role of
 		network -> CR = 1;
 		user -> CR = 0
 	end,
 	% P=1
-	DISC = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1, 2#010:3, 1:1, 2#00:2, 2#11:2>>,
+	DISC = <<(NewStateData#state.sapi):6, CR:1, 0:1, (NewStateData#state.tei):7, 1:1, 2#010:3, 1:1, 2#00:2, 2#11:2>>,
 	% TX DISC
 	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, DISC}),
 	% Start T200
@@ -638,12 +637,12 @@ multiple_frame_established({'DL', 'RELEASE', request, _DlParms}, StateData) ->
 	% Discard I queue
 	% RC=0
 	NewStateData = StateData#state{i_queue = [], rc = 0},
-	case StateData#state.role of
+	case NewStateData#state.role of
 		network -> CR = 1;
 		user -> CR = 0
 	end,
 	% P=1
-	DISC = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1, 2#010:3, 1:1, 2#00:2, 2#11:2>>,
+	DISC = <<(NewStateData#state.sapi):6, CR:1, 0:1, (NewStateData#state.tei):7, 1:1, 2#010:3, 1:1, 2#00:2, 2#11:2>>,
 	% TX DISC
 	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, DISC}),
 	% Stop T203
@@ -685,7 +684,7 @@ multiple_frame_established(t200_expiry, StateData) ->
 	% transmit ENQUIRY
 	NewStateData = transmit_enquiry(StateData#state{rc = 0, t200_ref = undefined}),
 	% RC=RC+1
-	{next_state, timer_recovery, NewStateData#state{rc = StateData#state.rc + 1}};
+	{next_state, timer_recovery, NewStateData#state{rc = NewStateData#state.rc + 1}};
 multiple_frame_established(t203_expiry, StateData) ->
 	% transmit ENQUIRY
 	NewStateData = transmit_enquiry(StateData#state{t203_ref = undefined}),
@@ -803,13 +802,13 @@ multiple_frame_established(set_own_receiver_busy, StateData) ->
 	% Set own receiver busy
 	% Clear acknowledge pending
 	NewStateData = StateData#state{own_receiver_busy = true, acknowledge_pending = false},
-	case StateData#state.role of
+	case NewStateData#state.role of
 		network -> CR = 0;
 		user -> CR = 1
 	end,
 	% F=0
-	RNR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
-			2#0000010:7, 1:1, (StateData#state.'V(R)'):7, 0:1>>,
+	RNR = <<(NewStateData#state.sapi):6, CR:1, 0:1, (NewStateData#state.tei):7, 1:1,
+			2#0000010:7, 1:1, (NewStateData#state.'V(R)'):7, 0:1>>,
 	% TX RNR response
 	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, RNR}),
 	{next_state, multiple_frame_established, NewStateData};
@@ -817,13 +816,13 @@ multiple_frame_established(clear_own_receiver_busy, StateData) when StateData#st
 	% Clear own receiver busy
 	% Clear acknowledge pending
 	NewStateData = StateData#state{own_receiver_busy = false, acknowledge_pending = false},
-	case StateData#state.role of
+	case NewStateData#state.role of
 		network -> CR = 0;
 		user -> CR = 1
 	end,
 	% F=0
-	RR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
-			2#0000000:7, 1:1, (StateData#state.'V(R)'):7, 0:1>>,
+	RR = <<(NewStateData#state.sapi):6, CR:1, 0:1, (NewStateData#state.tei):7, 1:1,
+			2#0000000:7, 1:1, (NewStateData#state.'V(R)'):7, 0:1>>,
 	% TX RR response
 	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, RR}),
 	{next_state, multiple_frame_established, NewStateData};
@@ -892,7 +891,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 		false ->
 			% N(R) error recovery
 			% Stop T203
-			cancel_timer(NextStateData#state.t203_ref),
+			cancel_timer(NextStateData2#state.t203_ref),
 			{next_state, awaiting_establishment, nr_error_recovery(NextStateData2#state{t203_ref = undefined})}
 	end;
 multiple_frame_established({'PH', 'DATA', indication,
@@ -1127,8 +1126,8 @@ multiple_frame_established({'PH', 'DATA', indication,
 		false ->
 			% N(R) error recovery
 			% Stop T203
-			cancel_timer(StateData#state.t203_ref),
-			{next_state, awaiting_establishment, nr_error_recovery(StateData#state{t203_ref = undefined})}
+			cancel_timer(StateData2#state.t203_ref),
+			{next_state, awaiting_establishment, nr_error_recovery(StateData2#state{t203_ref = undefined})}
 	end;
 %% ref:  ETS 300 125 Figure B-9/Q.921 (1 of 5) 
 multiple_frame_established({'DL', 'UNIT DATA', request, Data}, StateData) when is_binary(Data) ->
@@ -1179,14 +1178,14 @@ timer_recovery({'DL', 'RELEASE', request, _DlParms}, StateData) ->
 	% Discard I queue
 	% RC=0
 	NewStateData = StateData#state{i_queue = [], rc = 0},
-	case StateData#state.role of
+	case NewStateData#state.role of
 		network -> CR = 1;
 		user -> CR = 0
 	end,
 	% P=1
 	DISC = <<(NewStateData#state.sapi):6, CR:1, 0:1, (NewStateData#state.tei):7, 1:1, 2#010:3, 1:1, 2#00:2, 2#11:2>>,
 	% TX DISC
-	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, DISC}),
+	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, DISC}),
 	{next_state, awaiting_release, NewStateData};
 timer_recovery({'DL', 'DATA', request, Data}, StateData) when is_binary(Data) ->
 	% Put in I queue
@@ -1557,7 +1556,7 @@ timer_recovery({'PH', 'DATA', indication,
 	case validate_nr(NewStateData#state.'V(A)', NR, NewStateData#state.'V(S)') of
 		true ->
 			% V(A)=N(R)
-			{next_state, timer_recovery, acknowledge_iqueue(NextStateData, NR)};
+			{next_state, timer_recovery, acknowledge_iqueue(NewStateData, NR)};
 		false ->
 			% N(R) Error recovery
 			{next_state, awaiting_establishment, nr_error_recovery(NewStateData)}
@@ -1704,12 +1703,12 @@ nr_error_recovery(StateData) ->
 establish_data_link(StateData) ->
 	% Clear exception conditions
 	NewStateData = clear_exception_conditions(StateData),
-	case StateData#state.role of
+	case NewStateData#state.role of
 		network -> CR = 1;
 		user -> CR = 0
 	end,
 	% P=1
-	SABME = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1, 2#011:3, 1:1, 2#11:2, 2#11:2>>,
+	SABME = <<(NewStateData#state.sapi):6, CR:1, 0:1, (NewStateData#state.tei):7, 1:1, 2#011:3, 1:1, 2#11:2, 2#11:2>>,
 	% TX SABME
 	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, SABME}),
 	% RC=0
