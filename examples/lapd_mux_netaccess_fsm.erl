@@ -45,6 +45,7 @@
 init([NA, LapdId]) ->
 	{ok, deactivated, #state{na = NA, lapdid = LapdId}}.
                 
+%% enable layer 1
 deactivated({'PH', 'ACTIVATE', request, _}, StateData) ->
 	Port = netaccess:open(StateData#state.na),
 	L1 = #level1{l1_mode = ?IISDNl1modHDLC},
@@ -72,6 +73,11 @@ deactivated({_Port, L3L4m}, StateData) when is_record(L3L4m, l3_to_l4),
 deactivated(_Event, StateData) ->
 	{next_state, deactivated, StateData}.
 
+%% send a frame to layer 1
+activated({'PH', 'DATA', request, PDU}, StateData) when is_binary(PDU) ->
+	netaccess:send(StateData#state.port, PDU),
+	{next_state, activated, StateData};
+%% receive a frame from layer 1
 activated({_Port, L3L4m}, StateData) when is_record(L3L4m, l3_to_l4),
 		L3L4m#l3_to_l4.msgtype == ?L3L4mERROR ->
 	Reason = iisdn:error_code(L3L4m#l3_to_l4.data),
