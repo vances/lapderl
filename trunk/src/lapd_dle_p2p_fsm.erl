@@ -205,7 +205,7 @@ tei_assigned({'PH', 'DATA', indication,
 	catch gen_fsm:send_event(NextStateData#state.usap, {'DL', 'ESTABLISH', indication, undefined}),
 	% V(S)=0, V(A)=0, V(R)=0
 	% Start T203
-	T203_ref = gen_fsm:send_event_after(NextStateData#state.t203, t203_expired),
+	T203_ref = gen_fsm:send_event_after(NextStateData#state.t203, t203_expiry),
 	NewStateData = NextStateData#state{'V(S)' = 0, 'V(A)' = 0, 'V(R)' = 0, t203_ref = T203_ref},
 	{next_state, multiple_frame_established, NewStateData};
 tei_assigned({'PH', 'DATA', indication,
@@ -420,7 +420,7 @@ awaiting_establishment({'PH', 'DATA', indication,
 		StateData) when StateData#state.establishable == false ->
 	% F=1? (no)
 	{next_state, awaiting_establishment, StateData};
-awaiting_establishment(t200_expired, StateData) 
+awaiting_establishment(t200_expiry, StateData) 
 		when StateData#state.rc == StateData#state.n200 ->
 	% RC=N200? (yes)
 	% Discard I queue
@@ -430,7 +430,7 @@ awaiting_establishment(t200_expired, StateData)
 	% DL RELEASE indication
 	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
 	{next_state, tei_assigned, NewStateData};
-awaiting_establishment(t200_expired, StateData)  ->
+awaiting_establishment(t200_expiry, StateData)  ->
 	% RC=N200? (no)
 	% RC=RC+1
 	NewStateData = StateData#state{rc = StateData#state.rc + 1},
@@ -443,7 +443,7 @@ awaiting_establishment(t200_expired, StateData)  ->
 	% TX SABME
 	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, SABME}),
 	% Start T200
-	T200_ref = gen_fsm:send_event_after(StateData#state.t200, t200_expired),
+	T200_ref = gen_fsm:send_event_after(StateData#state.t200, t200_expiry),
 	{next_state, awaiting_establishment, NewStateData#state{t200_ref = T200_ref}};
 awaiting_establishment({'DL', 'DATA', request, Data}, StateData)  when is_binary(Data),
 		StateData#state.layer3_initiated == true ->
@@ -732,7 +732,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 	% Stop T200
 	% Start T203
 	cancel_timer(NewStateData#state.t200),
-	T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expired),
+	T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expiry),
 	% V(S)=0, V(A)=0, V(R)=0
 	{next_state, multiple_frame_established,
 			NewStateData#state{t200_ref = undefined, t203_ref = T203_ref,
@@ -865,13 +865,13 @@ multiple_frame_established({'PH', 'DATA', indication,
 					% Stop T200
 					% Start T203
 					cancel_timer(NewStateData#state.t200),
-					T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expired),
+					T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expiry),
 					{next_state, multiple_frame_established,
 							NewStateData#state{t200_ref = undefined, t203_ref = T203_ref}};
 				_ ->                                 % false
 					% Restart T200
 					cancel_timer(NewStateData#state.t200),
-					T200_ref = gen_fsm:send_event_after(NewStateData#state.t200, t200_expired),
+					T200_ref = gen_fsm:send_event_after(NewStateData#state.t200, t200_expiry),
 					{next_state, multiple_frame_established, NewStateData#state{t200_ref = T200_ref}}
 			end;
 		false ->
@@ -918,7 +918,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 			% Stop T200
 			% Start T203
 			cancel_timer(NewStateData#state.t200),
-			T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expired),
+			T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expiry),
 			{next_state, multiple_frame_established,
 					NewStateData#state{t200_ref = undefined, t203_ref = T203_ref}};
 		false ->
@@ -964,7 +964,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 			% Stop T200
 			% Start T203
 			cancel_timer(NewStateData#state.t200),
-			T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expired),
+			T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expiry),
 			{next_state, multiple_frame_established,
 					NewStateData#state{t200_ref = undefined, t203_ref = T203_ref}};
 		false ->
