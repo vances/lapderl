@@ -1,10 +1,10 @@
 
 .PHONY:	all
 all:	
-	cd netaccess && $(MAKE)
+	cd netaccess_adaptation && $(MAKE)
 	cd abis_emulator && $(MAKE)
 
 .PHONY:	clean
 clean:
-	cd netaccess && $(MAKE) clean
+	cd netaccess_adaptation && $(MAKE) clean
 	cd abis_emulator && $(MAKE) clean
