@@ -2,8 +2,8 @@
 ERL = erl
 ERLC = erlc
 
-.INTERMEDIATE:	%.boot %.script
-%.boot %.script:	%.rel ebin/lapd.app all
+.INTERMEDIATE:	%.script %.boot
+%.script %.boot:	%.rel ebin/lapd.app all
 	${ERLC} -I ./ebin $<
 
 %.tar.gz:	%.script %.boot

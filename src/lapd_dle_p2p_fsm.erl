@@ -356,11 +356,11 @@ awaiting_establishment({'PH', 'DATA', indication,
 	% DL ESTABLISH confirm
 	catch gen_fsm:send_event(StateData#state.usap, {'DL', 'ESTABLISH', confirm, undefined}),
 	% Stop T200
-	cancel_timer(StateData#state.t200),
+	cancel_timer(StateData#state.t200_ref),
 	% Start T203
-	cancel_timer(StateData#state.t203),
+	T203_ref = gen_fsm:send_event_after(StateData#state.t203, t203_expiry),
 	% V(S)=0, V(A)=0, V(R)=0
-	NewStateData = StateData#state{t200_ref = undefined, t203_ref = undefined,
+	NewStateData = StateData#state{t200_ref = undefined, t203_ref = T203_ref,
 			'V(S)' = 0, 'V(A)' = 0, 'V(R)' = 0},
 	{next_state, multiple_frame_established, NewStateData};
 awaiting_establishment({'PH', 'DATA', indication,
@@ -382,11 +382,11 @@ awaiting_establishment({'PH', 'DATA', indication,
 			StateData#state{i_queue = []}
 	end,
 	% Stop T200
-	cancel_timer(StateData#state.t200),
+	cancel_timer(StateData#state.t200_ref),
 	% Start T203
-	cancel_timer(StateData#state.t203),
+	T203_ref = gen_fsm:send_event_after(StateData#state.t203, t203_expiry),
 	% V(S)=0, V(A)=0, V(R)=0
-	NewStateData = StateData#state{t200_ref = undefined, t203_ref = undefined,
+	NewStateData = StateData#state{t200_ref = undefined, t203_ref = T203_ref,
 			'V(S)' = 0, 'V(A)' = 0, 'V(R)' = 0},
 	{next_state, multiple_frame_established, NewStateData};
 awaiting_establishment({'PH', 'DATA', indication,
@@ -407,7 +407,7 @@ awaiting_establishment({'PH', 'DATA', indication,
 	% DL RELEASE indication
 	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
 	% Stop T200
-	cancel_timer(NewStateData#state.t200),
+	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_assigned, NewStateData#state{t200_ref = undefined}};
 awaiting_establishment({'PH', 'DATA', indication,
 		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
@@ -419,7 +419,7 @@ awaiting_establishment(t200_expiry, StateData)
 		when StateData#state.rc == StateData#state.n200 ->
 	% RC=N200? (yes)
 	% Discard I queue
-	NewStateData = StateData#state{i_queue = []},
+	NewStateData = StateData#state{i_queue = [], t200_ref = undefined},
 	% MDL ERROR (G) indication
 	gen_fsm:send_event(NewStateData#state.cme, {'MDL', 'ERROR', indication, 'G'}),
 	% DL RELEASE indication
@@ -428,7 +428,7 @@ awaiting_establishment(t200_expiry, StateData)
 awaiting_establishment(t200_expiry, StateData)  ->
 	% RC=N200? (no)
 	% RC=RC+1
-	NewStateData = StateData#state{rc = StateData#state.rc + 1},
+	NewStateData = StateData#state{rc = StateData#state.rc + 1, t200_ref = undefined},
 	case StateData#state.role of
 		network -> CR = 1;
 		user -> CR = 0
@@ -561,11 +561,11 @@ awaiting_release(t200_expiry, StateData)
 	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'H'}),
 	% DL RELEASE confirm
 	catch gen_fsm:send_event(StateData#state.usap, {'DL', 'RELEASE', confirm, undefined}),
-	{next_state, tei_assigned, StateData};
+	{next_state, tei_assigned, StateData#state{t200_ref = undefined}};
 awaiting_release(t200_expiry, StateData) ->
 	% RC=N200? (no)
 	% RC=RC+1
-	NewStateData = StateData#state{rc = StateData#state.rc + 1},
+	NewStateData = StateData#state{rc = StateData#state.rc + 1, t200_ref = undefined},
 	case StateData#state.role of
 		network -> CR = 1;
 		user -> CR = 0
@@ -617,6 +617,8 @@ awaiting_release(Event, StateData) ->
 %% ref:  ETS 300 125 Figure B-7/Q.921 (1 of 10) 
 multiple_frame_established({'DL', 'ESTABLISH', request, _DlParms}, StateData) ->
 	% Discard I queue
+	% Stop T203
+	cancel_timer(StateData#state.t203_ref),
 	% Establish data link
 	NewStateData = establish_data_link(StateData#state{i_queue = []}),
 	% Set layer 3 initiated
@@ -646,8 +648,7 @@ multiple_frame_established({'DL', 'DATA', request, Data}, StateData) when is_bin
 	{next_state, multiple_frame_esatblished, NewStateData};
 multiple_frame_established({'DL', 'DATA', request, Data}, StateData) when is_binary(Data) ->
 	% Peer receiver busy? (no)
-	NewStateData = transmit_iqueue(StateData#state{i_queue = StateData#state.i_queue ++ [Data],
-			acknowledge_pending = false}),
+	NewStateData = transmit_iqueue(StateData#state{i_queue = StateData#state.i_queue ++ [Data], acknowledge_pending = false}),
 	% T200 Running?
 	case NewStateData#state.t200_ref of
 		T200_ref when is_reference(T200_ref) ->
@@ -656,7 +657,7 @@ multiple_frame_established({'DL', 'DATA', request, Data}, StateData) when is_bin
 			% Stop T203
 			% Start T200
 			cancel_timer(NewStateData#state.t203_ref),
-			T200_ref = gen_fsm:send_event_after(NewStateData#state.t200,  t200_expiry),
+					  T200_ref = gen_fsm:send_event_after(NewStateData#state.t200, t200_expiry),
 			{next_state, multiple_frame_esatblished, 
 					NewStateData#state{t203_ref = undefined, t200 = T200_ref}}
 	end;
@@ -666,14 +667,14 @@ multiple_frame_established(t200_expiry, StateData) ->
 	% Implementation choice available
 	% We'll take the easy road for now
 	% transmit ENQUIRY
-	NewStateData = transmit_enquiry(StateData#state{rc = 0}),
+	NewStateData = transmit_enquiry(StateData#state{rc = 0, t200_ref = undefined}),
 	% RC=RC+1
 	{next_state, timer_recovery, NewStateData#state{rc = StateData#state.rc + 1}};
 multiple_frame_established(t203_expiry, StateData) ->
 	% transmit ENQUIRY
-	NewStateData = transmit_enquiry(StateData),
+	NewStateData = transmit_enquiry(StateData#state{t200_ref = undefined}),
 	% RC=0
-	{next_state, timer_recovery, NewStateData#state{rc = 0}};
+	{next_state, timer_recovery, NewStateData#state{rc = 0, t203_ref = undefined}};
 multiple_frame_established({'MDL', 'REMOVE', request, {_TEI, _CES}}, StateData) ->
 	% Discard I and UI queues
 	NewStateData = StateData#state{tei = undefined, i_queue = [], ui_queue = []},
@@ -681,10 +682,9 @@ multiple_frame_established({'MDL', 'REMOVE', request, {_TEI, _CES}}, StateData) 
 	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
 	% Stop T200
 	% Stop T203
-	cancel_timer(NewStateData#state.t200),
-	cancel_timer(NewStateData#state.t203),
-	{next_state, tei_unassigned, 
-			NewStateData#state{t200_ref = undefined, t203_ref = undefined}};
+	cancel_timer(NewStateData#state.t200_ref),
+	cancel_timer(NewStateData#state.t203_ref),
+	{next_state, tei_unassigned, NewStateData#state{t200_ref = undefined, t203_ref = undefined}};
 multiple_frame_established({'PH', 'DEACTIVATION', indication, _PhParms}, StateData) ->
 	% Discard I and UI queues
 	NewStateData = StateData#state{i_queue = [], ui_queue = []},
@@ -692,10 +692,9 @@ multiple_frame_established({'PH', 'DEACTIVATION', indication, _PhParms}, StateDa
 	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
 	% Stop T200
 	% Stop T203
-	cancel_timer(NewStateData#state.t200),
-	cancel_timer(NewStateData#state.t203),
-	{next_state, tei_unassigned, 
-			NewStateData#state{t200_ref = undefined, t203_ref = undefined}};
+	cancel_timer(NewStateData#state.t200_ref),
+	cancel_timer(NewStateData#state.t203_ref),
+	{next_state, tei_unassigned, NewStateData#state{t200_ref = undefined, t203_ref = undefined}};
 % ref:  ETS 300 125 Figure B-7/Q.921 (3 of 10) 
 multiple_frame_established({'PH', 'DATA', indication,
 		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
@@ -712,18 +711,17 @@ multiple_frame_established({'PH', 'DATA', indication,
 	% V(S)=V(A)?
 	VA = NextStateData#state.'V(A)',
 	case NextStateData#state.'V(S)' of
-		VA ->
-			NewStateData = NextStateData;
-		_ ->
-			% Discard I queues
-			NewStateData = NextStateData#state{i_queue = []},
-			% DL ESTABLISH indication
-			catch gen_fsm:send_event(NewStateData#state.usap,
-					{'DL', 'ESTABLISH', indication, undefined})
+	VA ->
+		NewStateData = NextStateData;
+	_ ->
+		% Discard I queues
+		NewStateData = NextStateData#state{i_queue = []},
+		% DL ESTABLISH indication
+		catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'ESTABLISH', indication, undefined})
 	end,
 	% Stop T200
 	% Start T203
-	cancel_timer(NewStateData#state.t200),
+	cancel_timer(NewStateData#state.t200_ref),
 	T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expiry),
 	% V(S)=0, V(A)=0, V(R)=0
 	{next_state, multiple_frame_established,
@@ -743,8 +741,8 @@ multiple_frame_established({'PH', 'DATA', indication,
 	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
 	% Stop T200
 	% Stop T203
-	cancel_timer(NewStateData#state.t200),
-	cancel_timer(NewStateData#state.t203),
+	cancel_timer(NewStateData#state.t200_ref),
+	cancel_timer(NewStateData#state.t203_ref),
 	{next_state, tei_assigned, NewStateData#state{t200_ref = undefined, t203_ref = undefined}};
 multiple_frame_established({'PH', 'DATA', indication,
 		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
@@ -776,10 +774,12 @@ multiple_frame_established({'PH', 'DATA', indication,
 	% F=1? (no)
 	% MDL ERROR indication (E)
 	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'E'}),
+	% Stop T203
+	cancel_timer(StateData#state.t203_ref),
 	% Establish data link
 	NewStateData = establish_data_link(StateData),
 	% Clear layer 3 initiated
-	{next_state, awaiting_establishment, NewStateData#state{layer3_initiated = true}};
+	{next_state, awaiting_establishment, NewStateData#state{layer3_initiated = true, t203_ref = undefined}};
 multiple_frame_established(set_own_receiver_busy, StateData) when StateData#state.own_receiver_busy == true ->
 	{next_state, multiple_frame_established, StateData};
 multiple_frame_established(set_own_receiver_busy, StateData) ->
@@ -855,19 +855,21 @@ multiple_frame_established({'PH', 'DATA', indication,
 				VS ->                                % true
 					% Stop T200
 					% Start T203
-					cancel_timer(NewStateData#state.t200),
+					cancel_timer(NewStateData#state.t200_ref),
 					T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expiry),
 					{next_state, multiple_frame_established,
 							NewStateData#state{t200_ref = undefined, t203_ref = T203_ref}};
 				_ ->                                 % false
 					% Restart T200
-					cancel_timer(NewStateData#state.t200),
+					cancel_timer(NewStateData#state.t200_ref),
 					T200_ref = gen_fsm:send_event_after(NewStateData#state.t200, t200_expiry),
 					{next_state, multiple_frame_established, NewStateData#state{t200_ref = T200_ref}}
 			end;
 		false ->
 			% N(R) error recovery
-			{next_state, awaiting_establishment, nr_error_recovery(NextStateData2)}
+			% Stop T203
+			cancel_timer(NextStateData#state.t203_ref),
+			{next_state, awaiting_establishment, nr_error_recovery(NextStateData2#state{t203_ref = undefined})}
 	end;
 multiple_frame_established({'PH', 'DATA', indication,
 		<<_SAPI:6, CR:1, 0:1, _TEI:7, 1:1,   % Address
@@ -908,13 +910,15 @@ multiple_frame_established({'PH', 'DATA', indication,
 			NewStateData = transmit_iqueue(NextStateData3#state{'V(S)' = NR}),
 			% Stop T200
 			% Start T203
-			cancel_timer(NewStateData#state.t200),
+			cancel_timer(NewStateData#state.t200_ref),
 			T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expiry),
 			{next_state, multiple_frame_established,
 					NewStateData#state{t200_ref = undefined, t203_ref = T203_ref}};
 		false ->
 			% N(R) error recovery
-			{next_state, awaiting_establishment, nr_error_recovery(NextStateData2)}
+			% Stop T203
+			cancel_timer(NextStateData2#state.t203_ref),
+			{next_state, awaiting_establishment, nr_error_recovery(NextStateData2#state{t203_ref = undefined})}
 	end;
 % ref:  ETS 300 125 Figure B-7/Q.921 (7 of 10) 
 multiple_frame_established({'PH', 'DATA', indication,
@@ -954,13 +958,15 @@ multiple_frame_established({'PH', 'DATA', indication,
 			NewStateData = acknowledge_iqueue(NextStateData2, NR),
 			% Stop T200
 			% Start T203
-			cancel_timer(NewStateData#state.t200),
+			cancel_timer(NewStateData#state.t200_ref),
 			T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expiry),
 			{next_state, multiple_frame_established,
 					NewStateData#state{t200_ref = undefined, t203_ref = T203_ref}};
 		false ->
 			% N(R) error recovery
-			{next_state, awaiting_establishment, nr_error_recovery(NextStateData2)}
+			% Stop T203
+			cancel_timer(NextStateData2#state.t203_ref),
+			{next_state, awaiting_establishment, nr_error_recovery(NextStateData2#state{t203_ref = undefined})}
 	end;
 multiple_frame_established({'PH', 'DATA', indication,
 		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
@@ -970,8 +976,10 @@ multiple_frame_established({'PH', 'DATA', indication,
 	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'K'}),
 	% establish data link
 	NewStateData = establish_data_link(StateData),
+	% Stop T203
+	cancel_timer(NewStateData#state.t203_ref),
 	% clear layer3_initiated
-	{next_state, awaiting_establishment, NewStateData#state{layer3_initiated = false}};
+	{next_state, awaiting_establishment, NewStateData#state{layer3_initiated = false, t203_ref = undefined}};
 % ref:  ETS 300 125 Figure B-7/Q.921 (8 of 10) 
 multiple_frame_established({'PH', 'DATA', indication,
 		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
@@ -1095,7 +1103,9 @@ multiple_frame_established({'PH', 'DATA', indication,
 			end;
 		false ->
 			% N(R) error recovery
-			{next_state, awaiting_establishment, nr_error_recovery(StateData)}
+			% Stop T203
+			cancel_timer(StateData#state.t203_ref),
+			{next_state, awaiting_establishment, nr_error_recovery(StateData#state{t203_ref = undefined})}
 	end;
 % ref:  ETS 300 125 Figure B-7/Q.921 (10 of 10) 
 multiple_frame_established('ACKNOWLEDGE PENDING', StateData) 
@@ -1185,7 +1195,7 @@ timer_recovery(t200_expiry, StateData)
 	% MDL ERROR indication
 	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'I'}),
 	% Establish data link
-	NewStateData = establish_data_link(StateData),
+	NewStateData = establish_data_link(StateData#state{t200_ref = undefined}),
 	% Clear layer 3 initiated
 	{next_state, awaiting_establishment, NewStateData#state{layer3_initiated = false}};
 timer_recovery(t200_expiry, StateData) ->
@@ -1195,7 +1205,7 @@ timer_recovery(t200_expiry, StateData) ->
 	case StateData#state.'V(S)' of
 		VA ->                 % true
 			% Transmit enquiry
-			NextStateData = transmit_enquiry(StateData),
+			NextStateData = transmit_enquiry(StateData#state{t200_ref = undefined}),
 			% RC=RC+1
 			NewStateData= NextStateData#state{rc = NextStateData#state.rc + 1},
 			{next_state, timer_recovery, NewStateData};
@@ -1203,7 +1213,7 @@ timer_recovery(t200_expiry, StateData) ->
 			% Implementation choice available
 			% We'll take the easy road for now
 			% Transmit enquiry
-			NextStateData = transmit_enquiry(StateData),
+			NextStateData = transmit_enquiry(StateData#state{t200_ref = undefined}),
 			% RC=RC+1
 			NewStateData= NextStateData#state{rc = NextStateData#state.rc + 1},
 			{next_state, timer_recovery, NewStateData}
