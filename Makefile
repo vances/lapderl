@@ -10,13 +10,12 @@ ERLC = erlc
 	${ERL} -noshell -pa ./ebin -run systools make_tar $* -run init stop
 
 .PHONY:	all
-all:	src
-
-.PHONY:	src
-src:
+all:	
 	cd src && $(MAKE)
+	cd examples && $(MAKE)
 
 .PHONY:	clean
 clean:
 	cd src && $(MAKE) clean
+	cd examples && $(MAKE) clean
 	-rm *.script *.boot
