@@ -16,6 +16,39 @@
 %%% 	procedures.  Adaptations to specific layer 1 implementations may be 
 %%% 	implemented using this module.  This module behaves to gen_fsm.</p>
 %%%
+%%% 	<p>The pupose of the multiplex procedures are to distribute frames
+%%% 	received from layer 1 to the correct data link entity (DLE).  The 
+%%% 	<tt>lapd_mux_fsm</tt> behaviour module handles this distribution
+%%% 	function by maintaining a table of SAPIs for point-to-point and
+%%% 	broadcast DLEs which stores those pids.  The <tt>lapd_mux_fsm</tt>
+%%% 	behaviour module will handle L1 &lt;- L2 primitives.  The callback
+%%% 	module must convert the implementation specific layer 1 API to the 
+%%% 	primitive form expected.  The callback module must also accept the 
+%%% 	primitive form of L1 &lt;- L2 and convert to the layer 1 
+%%% 	implementation specific API.</p>
+%%% 	
+%%% 	<h3>Usage</h3>
+%%% 	<p>The callback module should be implemented as a gen_fsm behaviour
+%%% 	but with a <tt>lapd_mux_fsm</tt> behaviour module attribute:</p>
+%%% 	<pre>-behaviour(lapd_mux_fsm).</pre>
+%%%
+%%% 	<p>The call back module must handle the L1 &lt;- L2 primitives
+%%% 	in it's state(s):</p>
+%%% 	<pre>StateName({'PH', 'DATA', request, PDU}, StateData) when is_binary(PDU) -&gt;</pre>
+%%% 	<p>In the above state handler the callback module will forward the 
+%%% 	PDU to the layer 1 implementation using the implementation specific
+%%% 	API.</p>
+%%%
+%%% 	<p>The callback module must convert the implementation specific API
+%%% 	for received frames to send a primitive event for handling by the
+%%% 	<tt>lapd_mux_fsm</tt> behaviour module:</p>
+%%%
+%%% 	<pre>handle_info({Port, {'L3L4m', _CtrlBin, PDU}}, StateName, StateData) -&gt;
+%%% 	     gen_fsm:send_event(self(), {'PH', 'DATA', indication, PDU}),
+%%% 	     {next_state, StateName, StateData}.
+%%% 	</pre>
+%%% 	
+%%%
 %%% @reference ITU-T Q.921 ISDN user-network interface - Data link layer specification 
 %%%
 %%% @reference ETSI ETS 300 125 Integrated Services Digital Network (ISDN);
@@ -46,7 +79,7 @@
 		handle_info/3, terminate/3, code_change/4]).
 
 %%
-%% define what call backs users must export
+%% define what callbacks users must export
 %%
 %% @hidden
 behaviour_info(callbacks) ->
