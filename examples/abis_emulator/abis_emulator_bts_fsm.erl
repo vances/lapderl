@@ -127,6 +127,8 @@ handle_event(_Event, StateName, StateData) ->
 handle_sync_event(_Event, _From, StateName, StateData) ->
 	{next_state, StateName, StateData}.
 	
+handle_info({'DL', _, _, _} = Primitive, StateName, StateData) ->
+	StateName(Primitive, StateData);
 handle_info(_Info, StateName, StateData) ->
 	{next_state, StateName, StateData}.
 
