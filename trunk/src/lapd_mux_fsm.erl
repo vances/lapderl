@@ -181,9 +181,8 @@ init([Module, Args]) ->
                 
 %% @hidden
 %% L1 -> M PDU L2 management
-statename({'PH', 'DATA', indication, <<SAPI:6, _:2, TEI:7, _:1,  _/binary>>} = Event, State) 
-		when SAPI == 63, TEI == 127 ->
-	{value, LME} = gb_trees:lookup({SAPI, TEI}, State#lapd_mux_state.endpoints),
+statename({'PH', 'DATA', indication, <<63:6, _:2, 127:7, _:1,  _/binary>>} = Event, State) ->
+	{value, LME} = gb_trees:lookup({63, 127}, State#lapd_mux_state.endpoints),
 	gen_server:cast(LME, Event),
 	{next_state, statename, State};
 %% L1 -> L2 PDU 
@@ -195,6 +194,12 @@ statename({'PH', 'DATA', indication, <<SAPI:6, _:2, TEI:7, _:1, _/binary>>} = Ev
 		none ->
 			{next_state, statename, State}
 	end;
+%% L1 -> M L2 management
+statename({'PH', 'ACTIVATE', indication, _}, State) ->
+		{next_state, statename, State};
+statename({'PH', 'DEACTIVATE', indication, _}, State) ->
+	% TODO:  resend to all DLEs
+		{next_state, statename, State};
 statename(Event, State) ->
 	Module = State#lapd_mux_state.module,
 	StateName = State#lapd_mux_state.statename,

@@ -42,7 +42,7 @@ init([MUXCallBack, Args, Options]) ->
 split_options(Options) ->
 	LapdDefaults = [{k,7}, {n200,3}, {n201,260}, {n202,3}, {role,user},
  			{t200,1000}, {t201,1000}, {t202,2000}, {t203,10000}], % keep sorted!
-	split_options(Options, LapdDefaults, []).
+	split_options(lists:keysort(1, Options), LapdDefaults, []).
 split_options(Options, [{Key, Default}|T], Acc) ->
 	case lists:keysearch(Key, 1, Options) of
 		{value, {Key, NewValue}} ->
