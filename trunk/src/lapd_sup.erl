@@ -24,6 +24,8 @@
 init([PhySAP]) ->
 	LMEStartFunc = {gen_server, start_link, [lapd_lme_server, [PhySAP], []]},
 	LMEChildSpec = {lme, LMEStartFunc, permanent, 4000, worker, [lapd_lme_server]},
+	MUXStartFunc = {gen_fsm, start_link, [lapd_mux_fsm, [PhySAP], []]},
+	MUXChildSpec = {mux, MUXStartFunc, permanent, 4000, worker, [lapd_mux_fsm]},
 	SAPStartFunc = {supervisor, start_link, [lapd_sap_sup, []]},
 	SAPChildSpec = {sap, SAPStartFunc, permanent, infinity, supervisor, [lapd_sap_sup]},
-	{ok, {{one_for_one, 10, 60}, [LMEChildSpec, SAPChildSpec]}}.
+	{ok, {{one_for_one, 10, 60}, [LMEChildSpec, MUXChildSpec, SAPChildSpec]}}.
