@@ -1,3 +1,4 @@
+%%% $Id$
 %%%---------------------------------------------------------------------
 %%% @copyright 2004,2005 Motivity Telecom Inc.
 %%% @end
@@ -40,10 +41,11 @@
 %%% 		Station (BTS) side of a contrived GSM Abis protocol session.
 %%%
 %%% @private
-         
+%%%
 -module(abis_emulator_bts_fsm).
 -copyright('Copyright (c) 2004,2005 Motivity Telecom Inc.').
 -author('vances@motivity.ca').
+-vsn('$Revision$').
 -behaviour(gen_fsm).
 
 -export([init/1, terminate/3]).

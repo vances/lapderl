@@ -1,3 +1,4 @@
+%%% $Id$
 %%%---------------------------------------------------------------------
 %%% @copyright 2004,2005 Motivity Telecom Inc.
 %%% @end
@@ -42,11 +43,11 @@
 %%% @reference <a href="index.html">The LAPD User's Guide</a>
 %%%
 %%% @private
-         
+%%%         
+-module(abis_emulator_tei_sup).
 -copyright('Copyright (c) 2004,2005 Motivity Telecom Inc.').
 -author('vances@motivity.ca').
-
--module(abis_emulator_tei_sup).
+-vsn('$Revision$').
 -behaviour(supervisor).
 -export([init/1]).
 

@@ -1,3 +1,4 @@
+%%% $Id$
 %%%---------------------------------------------------------------------
 %%% @copyright 2004,2005 Motivity Telecom Inc.
 %%% @end
@@ -84,10 +85,10 @@
 %%% 	User-network interface data link layer specification;
 %%% 	Application of CCITT Recommendations Q.920/I.440 and Q.921/I.441 
 %%%
-         
 -module(lapd_mux_fsm).
 -copyright('Copyright (c) 2004,2005 Motivity Telecom Inc.').
 -author('vances@motivity.ca').
+-vsn('$Revision$').
 -behaviour(gen_fsm).
 
 % behaviour modules must export this function
