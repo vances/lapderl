@@ -1534,8 +1534,7 @@ timer_recovery({'PH', 'DATA', indication,
 	case validate_nr(NewStateData#state.'V(A)', NR, NewStateData#state.'V(S)') of
 		true ->
 			% V(A)=N(R)
-			NewStateData = acknowledge_iqueue(NextStateData, NR),
-			{next_state, timer_recovery, NewStateData};
+			{next_state, timer_recovery, acknowledge_iqueue(NextStateData, NR)};
 		false ->
 			% N(R) Error recovery
 			{next_state, awaiting_establishment, nr_error_recovery(NewStateData)}
