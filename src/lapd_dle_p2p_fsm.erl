@@ -1002,7 +1002,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 			case P of
 				1 ->
 					% F=1
-					RNR = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#0000010:7, 1:1, (StateData#state.'V(R)'):7, 1:1>>,
+					RNR = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#0000010:7, 1:1, VR:7, 1:1>>,
 					% TX RNR
 					gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RNR}),
 					% Clear acknowledge pending
@@ -1015,7 +1015,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 			case NS of
 				VR ->
 					%V(R)=V(R)+1
-					NewVR = StateData#state.'V(R)' + 1,
+					NewVR = (VR + 1) rem 128,
 					% Clear reject exception (deferred to below)
 					% DL DATA indication
 					catch gen_fsm:send_event(StateData#state.usap, {'DL', 'DATA', indication, Data}),
@@ -1051,7 +1051,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 							case P of
 								1 ->
 									% F=P
-									RR = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#0000000:7, 1:1, (StateData#state.'V(R)'):7, P:1>>,
+									RR = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#0000000:7, 1:1, VR:7, P:1>>,
 									% TX RR
 									gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RR}),
 									% Clear acknowledge pending
@@ -1061,7 +1061,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 							end;
 						_ ->
 							% F=P
-							REJ = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#0000100:7, 1:1, (StateData#state.'V(R)'):7, P:1>>,
+							REJ = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#0000100:7, 1:1, VR:7, P:1>>,
 							% TX REJ
 							gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, REJ}),
 							% Set reject exception
@@ -1072,7 +1072,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 	end,
 	% ref:  ETS 300 125 Figure B-7/Q.921 (9 of 10) connector (3)
 	% V(A) <= N(R) <= V(S)?
-	case validate_nr(StateData2#state.'V(A)', NR, StateData2#state.'V(S)') of
+	case validate_nr(VA, NR, VS) of
 		true ->
 			% V(A)=N(R)
 			NextStateData = acknowledge_iqueue(StateData2, NR),
@@ -1187,7 +1187,7 @@ timer_recovery({'DL', 'RELEASE', request, _DlParms}, StateData) ->
 		user -> CR = 0
 	end,
 	% P=1
-	DISC = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1, 2#010:3, 1:1, 2#00:2, 2#11:2>>,
+	DISC = <<(NewStateData#state.sapi):6, CR:1, 0:1, (NewStateData#state.tei):7, 1:1, 2#010:3, 1:1, 2#00:2, 2#11:2>>,
 	% TX DISC
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, DISC}),
 	{next_state, awaiting_release, NewStateData};
@@ -1532,7 +1532,7 @@ timer_recovery({'PH', 'DATA', indication,
 	NewStateData = case P of
 		1 ->
 			% F=P
-			RR = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#0000000:7, 1:1, (StateData#state.'V(R)'):7, P:1>>,
+			RR = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#0000000:7, 1:1, (NextStateData#state.'V(R)'):7, P:1>>,
 			% TX RR
 			gen_fsm:send_event(NextStateData#state.mux, {'PH', 'DATA', request, RR}),
 			% Clear acknowledge pending
