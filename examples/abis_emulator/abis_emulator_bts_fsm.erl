@@ -35,7 +35,7 @@ init_lapd(timeout, StateData) ->
 	{LME, _CME, DLE} = lapd:open(LAPD, 0, StateData#state.tei, []),
 	lapd:bind(LME, DLE, self()),
 	gen_fsm:send_event(DLE, {'DL', 'ESTABLISH', request, []}),
-	{next_state, awaiting_establish, #state{sap = DLE, events = Events, next = 0}}.
+	{next_state, awaiting_establish, #state{sap = DLE, events = Events}}.
 
 link_connection_released({'DL', 'ESTABLISH', indication, _}, StateData) ->
 	{next_state, link_conection_established, StateData};
@@ -51,11 +51,12 @@ link_connection_released(Event, StateData) ->
 	{next_state, link_connection_released, StateData}.
 
 awaiting_establish({'DL', 'ESTABLISH', confirm, _}, StateData) ->
-	case next_event(StateData) of
+	NewStateData = StateData#state{next = 1},
+	case next_event(NewStateData) of
 		{bts, Timeout, _Type, _PDU} ->
-			{next_state, link_conection_established, StateData, Timeout};
+			{next_state, link_conection_established, NewStateData, Timeout};
 		{bsc, _, _, _} ->
-			{next_state, link_conection_established, StateData}
+			{next_state, link_conection_established, NewStateData}
 	end;
 awaiting_establish({'DL', 'RELEASE', indication, _}, StateData) ->
 	{next_state, link_conection_released, StateData};
