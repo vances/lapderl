@@ -3,12 +3,9 @@
 -export([init/1]).
 
 init([Sup, TEI]) ->
-	Children = supervisor:which_children(Sup),
-	{value, {bsc, BSC, _, _}} = lists:keysearch(bsc, 1, Children),
-	{value, {bts, BTS, _, _}} = lists:keysearch(bts, 1, Children),
-	BSCStartFunc = {gen_fsm, start_link, [abis_emulator_bsc_fsm, [BSC, TEI], []]},
+	BSCStartFunc = {gen_fsm, start_link, [abis_emulator_bsc_fsm, [Sup, TEI], []]},
 	BSCChildSpec = {bsc, BSCStartFunc, permanent, 4000, worker, [abis_emulator_bsc_fsm]},
-	BTSStartFunc = {gen_fsm, start_link, [abis_emulator_bts_fsm, [BTS, TEI], []]},
+	BTSStartFunc = {gen_fsm, start_link, [abis_emulator_bts_fsm, [Sup, TEI], []]},
 	BTSChildSpec = {bts, BTSStartFunc, permanent, 4000, worker, [abis_emulator_bts_fsm]},
-	{ok, {{all_for_one, 10, 60}, [BSCChildSpec, BTSChildSpec]}}.
+	{ok, {{one_for_all, 10, 60}, [BSCChildSpec, BTSChildSpec]}}.
 
