@@ -28,6 +28,7 @@
 -behaviour(gen_fsm).
 
 -export([init/1, terminate/3]).
+-export([await_cme/2]).
 -export([tei_unassigned/2, assign_awaiting_tei/2, establish_awaiting_tei/2,
 		tei_assigned/2, awaiting_establishment/2, awaiting_release/2,
 		multiple_frame_established/2, timer_recovery/2]).
@@ -38,7 +39,7 @@
 %% LME:  Layer Management Entity
 %% CME:  Connection Management Entity
 %% SAPI: Service Access Point Identifier
--record(state, {sup, mux, lme, cme, tei, sapi, role, usap,
+-record(state, {mux, lme, cme, tei, sapi, role, usap,
 		% MDL-ERROR codes
 		'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
 		% ref: ETS 300 125 B.4 The use of queues
@@ -56,14 +57,17 @@
 		establishable, layer3_initiated, own_receiver_busy, acknowledge_pending,
 		peer_receiver_busy, reject_exception}).
 
-init([Sup, PhySAP, SAPI, LME, Options]) ->
+init([PhySAP, SAPI, LME, Options]) ->
 	Role = case lists:keysearch(role, 1, Options) of
 		{value, Value} -> Value;
 		_ -> user
 	end,
 	process_flag(trap_exit, true),
-	StateData = #state{sup = Sup, mux = PhySAP, lme = LME, sapi = SAPI, role = Role},
-	{ok, await_bind, StateData}.
+	StateData = #state{mux = PhySAP, lme = LME, sapi = SAPI, role = Role},
+	{ok, await_cme, StateData}.
+
+await_cme({cme, CME}, StateData) ->
+	{next_state, tei_unassigned, StateData#state{cme = CME}}.
 
 %% ref:  ETS 300 125 Figure B-3/Q.921 (1 of 3) 
 tei_unassigned({'DL', 'ESTABLISH', request, _DlParms}, StateData) ->
@@ -1663,8 +1667,8 @@ timer_recovery(Event, StateData) ->
 	{next_state, timer_recovery, StateData}.
 
 %% implementation specific state and primitive for associating a LAPD-User pid()
-handle_event({'MDL', 'BIND', request, {CME, _DLE, USAP}}, StateName, StateData) ->
-	{next_state, StateName, StateData#state{usap = USAP, cme = CME}};
+handle_event({'MDL', 'BIND', request, USAP}, StateName, StateData) ->
+	{next_state, StateName, StateData#state{usap = USAP}};
 handle_event(_Event, StateName, StateData) ->
 	{next_state, StateName, StateData}.
 	

@@ -50,20 +50,22 @@ handle_call({'SMAP', 'OPEN', request, {SapSup, SAPI, 127, Options}}, {Pid, _Tag}
 	end;
 %% handle a lapd:open/4 call for a point-to-point DLE
 handle_call({'SMAP', 'OPEN', request, {SapSup, SAPI, TEI, Options}}, {Pid, _Tag}, State) ->
-	case supervisor:start_child(SapSup, [[SapSup, State#state.mux, SAPI, self(), Options]]) of
+	case supervisor:start_child(SapSup, [[State#state.mux, SAPI, self(), Options]]) of
 		{ok, CeSup} ->
 			Children = supervisor:which_children(CeSup),
 			{value, {cme, CME, _, _}} = lists:keysearch(cme, 1, Children),
 			{value, {dle, DLE, _, _}} = lists:keysearch(dle, 1, Children),
-			link(DLE),
-			gen_fsm:send_event(State#state.mux, {'MDL', 'OPEN', request, {p2p, SAPI, DLE}}),
+			gen_fsm:send_event(CME, {dle, DLE}),
+			gen_fsm:send_event(DLE, {cme, CME}),
+			gen_fsm:send_event(State#state.mux, {open, {p2p, SAPI, DLE}}),
 			case TEI of
 				X when is_integer(X), X >= 0, X =< 63 ->
-					gen_fsm:send_event(DLE, {'MDL', 'ASSIGN', request, {TEI, DLE}}),
+					gen_fsm:send_event(CME, {'MDL', 'ASSIGN', request, {TEI, DLE}}),
 					SapRec = #sap{sapi = SAPI, tei = TEI, cme = CME, dle = DLE};
 				_ ->
 					SapRec = #sap{sapi = SAPI, cme = CME, dle = DLE}
 			end,
+			link(DLE),
 			NewSaps = sap_insert(SapRec, State#state.saps),
 			NewState = State#state{sapsup = SapSup, saps = NewSaps},
 			{reply, {self(), CME, DLE}, NewState};
@@ -75,15 +77,13 @@ handle_call({'SMAP', 'BIND', request, {DLE, USAP}}, _From, State) ->
 	case catch sap_search({dle, DLE}, State#state.saps) of
 		% point-to-point DLE
 		SapRec when is_record(SapRec, sap) ->
-			CME = SapRec#sap.cme,
-			gen_fsm:send_all_state_event(DLE, {'MDL', 'BIND', request, {CME, DLE, USAP}}),
-			gen_fsm:send_all_state_event(CME, {'MDL', 'BIND', request, {CME, DLE, USAP}}),
+			gen_fsm:send_all_state_event(DLE, {'MDL', 'BIND', request, USAP}),
 			NewSaps = sap_update(SapRec#sap{usap = USAP}, State#state.saps),
 			NewState = State#state{saps = NewSaps},
 			{reply, ok, NewState};
 		_ ->
 			% broadcast DLE
-			gen_fsm:send_all_state_event(DLE, {'MDL', 'BIND', request, {undefined, DLE, USAP}}),
+			gen_fsm:send_all_state_event(DLE, {'MDL', 'BIND', request, USAP}),
 			{reply, ok, State}
 	end;
 handle_call(Request, _From, State) ->
