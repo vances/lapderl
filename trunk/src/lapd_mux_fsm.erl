@@ -107,6 +107,7 @@ cancel_timer(Ref) ->
 %%----------------------------------------------------------------------
 
 init([Module, Args]) ->
+	process_flag(trap_exit, true),
 	case Module:init(Args) of
 		{ok, StateName, StateData} ->
 			State = #lapd_mux_state{module = Module, statename = StateName, 
@@ -196,6 +197,26 @@ statename(Event, From, State) ->
 %% post initialization assignment of LME pid
 handle_event({lme, LME}, statename, State) ->
 	NewState = State#lapd_mux_state{lme = LME},
+	{next_state, statename, NewState};
+%% point-to-point sapi opened
+handle_event({open, {p2p, SAPI, DLE}}, statename, State) ->
+	NewSapis = gb_trees:insert(SAPI, DLE, State#lapd_mux_state.p2p_sapis),
+	NewState = State#lapd_mux_state{p2p_sapis = NewSapis},
+	{next_state, statename, NewState};
+%% broadcast sapi opened
+handle_event({open, {bcast, SAPI, DLE}}, statename, State) ->
+	NewSapis = gb_trees:insert(SAPI, DLE, State#lapd_mux_state.bcast_sapis),
+	NewState = State#lapd_mux_state{bcast_sapis = NewSapis},
+	{next_state, statename, NewState};
+%% point-to-point sapi closed
+handle_event({close, {p2p, SAPI, _DLE}}, statename, State) ->
+	NewSapis = gb_trees:delete_any(SAPI, State#lapd_mux_state.p2p_sapis),
+	NewState = State#lapd_mux_state{p2p_sapis = NewSapis},
+	{next_state, statename, NewState};
+%% broadcast sapi closed
+handle_event({close, {broadcast, SAPI, _DLE}}, statename, State) ->
+	NewSapis = gb_trees:delete_any(SAPI, State#lapd_mux_state.bcast_sapis),
+	NewState = State#lapd_mux_state{bcast_sapis = NewSapis},
 	{next_state, statename, NewState};
 handle_event(Event, statename, State) ->
 	Module = State#lapd_mux_state.module,
