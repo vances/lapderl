@@ -74,7 +74,7 @@ active({'MDL', 'TEI CHECK', response, multiple}, StateData) ->
 	{next_state, active, StateData};
 active({'MDL', 'ASSIGN', request, {TEI, CES}}, StateData)
 		when CES == StateData#state.dle ->
-	gen_server:cast(StateData#state.lme, {'MDL', 'ASSIGN', request, {TEI, CES}}),
+	gen_fsm:send_event(StateData#state.dle, {'MDL', 'ASSIGN', request, {TEI, CES}}),
 	{next_state, active, StateData#state{tei = TEI}};
 active(Event, StateData) ->
 	error_logger:error_report([{module, ?MODULE}, {line, ?LINE}, {message, Event}]),
