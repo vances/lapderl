@@ -256,7 +256,7 @@ tei_assigned({'PH', 'DATA', indication,
 	% Establish data link
 	NewStateData = establish_data_link(StateData),
 	% Set layer 3 initiated
-	{next_state, awaiting_estabslishment, NewStateData#state{layer3_initiated = true}};
+	{next_state, awaiting_establishment, NewStateData#state{layer3_initiated = true}};
 %% ref:  ETS 300 125 Figure B-9/Q.921 (1 of 5) 
 tei_assigned({'DL', 'UNIT DATA', request, Data}, StateData) when is_binary(Data) ->
 	case StateData#state.role of
@@ -1173,7 +1173,7 @@ timer_recovery({'DL', 'ESTABLISH', request, _DlParms}, StateData) ->
 	% Establish data link
 	NewStateData = establish_data_link(StateData#state{i_queue = []}),
 	% Set layer 3 initiated
-	{next_state, awaiting_estabslishment, NewStateData#state{layer3_initiated = true}};
+	{next_state, awaiting_establishment, NewStateData#state{layer3_initiated = true}};
 timer_recovery({'DL', 'RELEASE', request, _DlParms}, StateData) ->
 	% Discard I queue
 	% RC=0
@@ -1409,7 +1409,7 @@ timer_recovery({'PH', 'DATA', indication,
 					T203_ref = gen_fsm:send_event_after(NextStateData2#state.t203, t203_expiry),
 					NewStateData = NextStateData2#state{t200_ref = undefined, t203_ref = T203_ref},
 					% Invoke retransmission
-					{next_state, multi_frame_establish, transmit_iqueue(NewStateData#state{'V(S)' = NR})};
+					{next_state, multiple_frame_established, transmit_iqueue(NewStateData#state{'V(S)' = NR})};
 				0 ->
 					{next_state, timer_recovery, NextStateData2}
 			end;
@@ -1464,7 +1464,7 @@ timer_recovery({'PH', 'DATA', indication,
 					T200_ref = gen_fsm:send_event_after(NextStateData2#state.t200, t200_expiry),
 					NewStateData = NextStateData2#state{t200_ref = T200_ref},
 					% Invoke retransmission
-					{next_state, multi_frame_establish, transmit_iqueue(NewStateData#state{'V(S)' = NR})};
+					{next_state, multiple_frame_established, transmit_iqueue(NewStateData#state{'V(S)' = NR})};
 				0 ->
 					{next_state, timer_recovery, NextStateData2}
 			end;

@@ -2,10 +2,11 @@
 ERL = erl
 ERLC = erlc
 
-%.boot:ebin/%.rel ebin/lapd.app all
+.INTERMEDIATE:	%.boot %.script
+%.boot %.script:	%.rel
 	${ERLC} -I ./ebin $<
 
-%.tar.gz:	%.boot
+%.tar.gz:	%.script %.boot
 	${ERL} -noshell -pa ./ebin -run systools make_tar $* -run init stop
 
 .PHONY:	all
