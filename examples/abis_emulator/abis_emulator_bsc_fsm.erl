@@ -126,9 +126,19 @@ handle_event(_Event, StateName, StateData) ->
 handle_sync_event(_Event, _From, StateName, StateData) ->
 	{next_state, StateName, StateData}.
 	
+handle_info({'DL', 'ESTABLISH', _, _} = Primitive, StateName, StateData) ->
+	error_logger:info_report(["Established",
+			{sap, StateData#state.sap}, {tei, StateData#state.tei}]),
+	StateName(Primitive, StateData);
+handle_info({'DL', 'RELEASE', _, _} = Primitive, StateName, StateData) ->
+	error_logger:info_report(["Released",
+			{sap, StateData#state.sap}, {tei, StateData#state.tei}]),
+	StateName(Primitive, StateData);
 handle_info({'DL', _, _, _} = Primitive, StateName, StateData) ->
 	StateName(Primitive, StateData);
-handle_info(_Info, StateName, StateData) ->
+handle_info(Info, StateName, StateData) ->
+	error_logger:error_report([{module, ?MODULE}, {line, ?LINE},
+		{state, StateName}, {info, Info}]),
 	{next_state, StateName, StateData}.
 
 terminate(_Reason, _StateName, _StateData) ->
