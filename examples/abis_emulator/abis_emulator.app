@@ -7,7 +7,7 @@
 		                     abis_emulator_bsc_fsm, abis_emulator_bts_fsm]},
 		{registered,   []},
 		{included_applications, []},
-		{applications, [kernel, stdlib, netaccess, lapd]},
+		{applications, [kernel, stdlib]},
 		{env,          [{na_servername, {local, na}},
 		                    {na_boardname, "/dev/pri0"}, {na_boardnumber, 0},
 		                    {bsc_lapdid, 0}, {bts_lapdid, 32},
