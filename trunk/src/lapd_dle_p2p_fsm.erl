@@ -660,9 +660,9 @@ multiple_frame_established({'DL', 'DATA', request, Data}, StateData) when is_bin
 			% Stop T203
 			% Start T200
 			cancel_timer(NewStateData#state.t203_ref),
-					  T200_ref = gen_fsm:send_event_after(NewStateData#state.t200, t200_expiry),
+			T200_ref = gen_fsm:send_event_after(NewStateData#state.t200, t200_expiry),
 			{next_state, multiple_frame_established, 
-					NewStateData#state{t203_ref = undefined, t200 = T200_ref}}
+					NewStateData#state{t203_ref = undefined, t200_ref = T200_ref}}
 	end;
 % ref:  ETS 300 125 Figure B-7/Q.921 (2 of 10) 
 multiple_frame_established(t200_expiry, StateData) ->
