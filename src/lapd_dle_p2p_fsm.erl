@@ -59,7 +59,7 @@
 
 init([PhySAP, SAPI, LME, Options]) ->
 	Role = case lists:keysearch(role, 1, Options) of
-		{value, Value} -> Value;
+		{value, network} -> network;
 		_ -> user
 	end,
 	process_flag(trap_exit, true),
@@ -261,7 +261,7 @@ tei_assigned({'PH', 'DATA', indication,
 tei_assigned({'DL', 'UNIT DATA', request, Data}, StateData) when is_binary(Data) ->
 	case StateData#state.role of
 		network -> CR = 1;
-		_ -> CR = 0
+		user -> CR = 0
 	end,
 	% P=0
 	UI = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
@@ -436,7 +436,7 @@ awaiting_establishment(t200_expiry, StateData)  ->
 	NewStateData = StateData#state{rc = StateData#state.rc + 1},
 	case StateData#state.role of
 		network -> CR = 1;
-		_ -> CR = 0
+		user -> CR = 0
 	end,
 	% P=1
 	SABME = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1, 2#011:3, 1:1, 2#11:2, 2#11:2>>,
@@ -456,7 +456,7 @@ awaiting_establishment({'DL', 'DATA', request, Data}, StateData)  when is_binary
 awaiting_establishment({'DL', 'UNIT DATA', request, Data}, StateData) when is_binary(Data) ->
 	case StateData#state.role of
 		network -> CR = 1;
-		_ -> CR = 0
+		user -> CR = 0
 	end,
 	% P=0
 	UI = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
@@ -575,7 +575,7 @@ awaiting_release(t200_expiry, StateData) ->
 	NewStateData = StateData#state{rc = StateData#state.rc + 1},
 	case StateData#state.role of
 		network -> CR = 1;
-		_ -> CR = 0
+		user -> CR = 0
 	end,
 	% P=1
 	DISC = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1, 2#010:3, 1:1, 2#00:2, 2#11:2>>,
@@ -588,7 +588,7 @@ awaiting_release(t200_expiry, StateData) ->
 awaiting_release({'DL', 'UNIT DATA', request, Data}, StateData) when is_binary(Data) ->
 	case StateData#state.role of
 		network -> CR = 1;
-		_ -> CR = 0
+		user -> CR = 0
 	end,
 	% P=0
 	UI = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
@@ -634,7 +634,7 @@ multiple_frame_established({'DL', 'RELEASE', request, _DlParms}, StateData) ->
 	NewStateData = StateData#state{i_queue = [], rc = 0},
 	case StateData#state.role of
 		network -> CR = 1;
-		_ -> CR = 0
+		user -> CR = 0
 	end,
 	% P=1
 	DISC = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1, 2#010:3, 1:1, 2#00:2, 2#11:2>>,
@@ -797,7 +797,7 @@ multiple_frame_established(set_own_receiver_busy, StateData) ->
 	NewStateData = StateData#state{own_receiver_busy = true, acknowledge_pending = false},
 	case StateData#state.role of
 		network -> CR = 0;
-		_ -> CR = 1
+		user -> CR = 1
 	end,
 	% F=0
 	RNR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
@@ -811,7 +811,7 @@ multiple_frame_established(clear_own_receiver_busy, StateData) when StateData#st
 	NewStateData = StateData#state{own_receiver_busy = false, acknowledge_pending = false},
 	case StateData#state.role of
 		network -> CR = 0;
-		_ -> CR = 1
+		user -> CR = 1
 	end,
 	% F=0
 	RR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
@@ -831,7 +831,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 	% COMMAND?
 	NextStateData2 = case CR of
 		CR when NextStateData#state.role == network , CR == 0; 
-				NextStateData#state.role /= network, CR == 1 ->     % command
+				NextStateData#state.role == user, CR == 1 ->     % command
 			% P=1?
 			case PF of
 				1 ->
@@ -841,7 +841,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 					NextStateData
 			end;
 		CR when NextStateData#state.role == network , CR == 1; 
-				NextStateData#state.role /= network, CR == 0 ->     % response
+				NextStateData#state.role == user, CR == 0 ->     % response
 			% F=1?
 			case PF of
 				1 ->
@@ -887,7 +887,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 	% COMMAND?
 	NextStateData2 = case CR of
 		CR when NextStateData#state.role == network , CR == 0; 
-				NextStateData#state.role /= network, CR == 1 ->     % command
+				NextStateData#state.role == user, CR == 1 ->     % command
 			% P=1?
 			case PF of
 				1 ->
@@ -897,7 +897,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 					NextStateData
 			end;
 		CR when NextStateData#state.role == network , CR == 1; 
-				NextStateData#state.role /= network, CR == 0 ->     % response
+				NextStateData#state.role == user, CR == 0 ->     % response
 			% F=1?
 			case PF of
 				1 ->
@@ -935,7 +935,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 	% COMMAND?
 	NextStateData2 = case CR of
 		CR when NextStateData#state.role == network , CR == 0; 
-				NextStateData#state.role /= network, CR == 1 ->     % command
+				NextStateData#state.role == user, CR == 1 ->     % command
 			% P=1?
 			case PF of
 				1 ->
@@ -945,7 +945,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 					NextStateData
 			end;
 		CR when NextStateData#state.role == network , CR == 1; 
-				NextStateData#state.role /= network, CR == 0 ->     % response
+				NextStateData#state.role == user, CR == 0 ->     % response
 			% F=1?
 			case PF of
 				1 ->
@@ -1116,7 +1116,7 @@ multiple_frame_established('ACKNOWLEDGE PENDING', StateData)
 	% Acknowledge pending? (yes)
 	case StateData#state.role of
 		network -> CR = 0;
-		_ -> CR = 1
+		user -> CR = 1
 	end,
 	% F=0
 	RR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
@@ -1133,7 +1133,7 @@ multiple_frame_established('ACKNOWLEDGE PENDING', StateData) ->
 multiple_frame_established({'DL', 'UNIT DATA', request, Data}, StateData) when is_binary(Data) ->
 	case StateData#state.role of
 		network -> CR = 1;
-		_ -> CR = 0
+		user -> CR = 0
 	end,
 	% P=0
 	UI = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
@@ -1180,7 +1180,7 @@ timer_recovery({'DL', 'RELEASE', request, _DlParms}, StateData) ->
 	NewStateData = StateData#state{i_queue = [], rc = 0},
 	case StateData#state.role of
 		network -> CR = 1;
-		_ -> CR = 0
+		user -> CR = 0
 	end,
 	% P=1
 	DISC = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1, 2#010:3, 1:1, 2#00:2, 2#11:2>>,
@@ -1329,7 +1329,7 @@ timer_recovery('SET OWN RECEIVER BUSY', StateData)
 timer_recovery('SET OWN RECEIVER BUSY', StateData) ->
 	case StateData#state.role of
 		network -> CR = 0;
-		_ -> CR = 1
+		user -> CR = 1
 	end,
 	% F=0
 	RNR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
@@ -1346,7 +1346,7 @@ timer_recovery('CLEAR OWN RECEIVER BUSY', StateData)
 timer_recovery('CLEAR OWN RECEIVER BUSY', StateData)  ->
 	case StateData#state.role of
 		network -> CR = 0;
-		_ -> CR = 1
+		user -> CR = 1
 	end,
 	% F=0
 	RR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
@@ -1363,9 +1363,9 @@ timer_recovery({'PH', 'DATA', indication,
 		Command:7, 1:1, NR:7, P:1>>},        % Command
 		StateData) when
 		StateData#state.role == network, CR == 0, Command == 2#0000000;   % Network side Command (RR) 
-		StateData#state.role /= network, CR == 1, Command == 2#0000000;   % User side Command (RR)
+		StateData#state.role == user, CR == 1, Command == 2#0000000;      % User side Command (RR)
 		StateData#state.role == network, CR == 0, Command == 2#0000100;   % Network side Command (REJ) 
-		StateData#state.role /= network, CR == 1, Command == 2#0000100 -> % User side Command (REJ)
+		StateData#state.role == user, CR == 1, Command == 2#0000100 ->    % User side Command (REJ)
 	% Clear peer receiver busy
 	NextStateData = StateData#state{peer_receiver_busy = false},
 	% P=1?
@@ -1390,9 +1390,9 @@ timer_recovery({'PH', 'DATA', indication,
 		Response:7, 1:1, NR:7, F:1>>},       % Response
 		StateData) when
 		StateData#state.role == network, CR == 1, Response == 2#0000000;   % Network side Response (RR) 
-		StateData#state.role /= network, CR == 0, Response == 2#0000000;   % User side Response (RR)
+		StateData#state.role == user, CR == 0, Response == 2#0000000;      % User side Response (RR)
 		StateData#state.role == network, CR == 1, Response == 2#0000010;   % Network side Response (REJ) 
-		StateData#state.role /= network, CR == 0, Response == 2#0000010 -> % User side Response (REJ)
+		StateData#state.role == user, CR == 0, Response == 2#0000010 ->    % User side Response (REJ)
 	% Clear peer receiver busy
 	NextStateData = StateData#state{peer_receiver_busy = false},
 	% V(A)<=N(R)<=V(S)?
@@ -1423,7 +1423,7 @@ timer_recovery({'PH', 'DATA', indication,
 		Command:7, 1:1, NR:7, P:1>>},        % Command
 		StateData) when
 		StateData#state.role == network, CR == 0, Command == 2#0000010;   % Network side Command (RNR) 
-		StateData#state.role /= network, CR == 1, Command == 2#0000010 -> % User side Command (RNR)
+		StateData#state.role == user, CR == 1, Command == 2#0000010 ->    % User side Command (RNR)
 	% Set peer receiver busy
 	NextStateData = StateData#state{peer_receiver_busy = true},
 	% P=1?
@@ -1448,7 +1448,7 @@ timer_recovery({'PH', 'DATA', indication,
 		Response:7, 1:1, NR:7, F:1>>},       % Response
 		StateData) when
 		StateData#state.role == network, CR == 0, Response == 2#0000010;   % Network side Response (RNR) 
-		StateData#state.role /= network, CR == 1, Response == 2#0000010 -> % User side Response (RNR)
+		StateData#state.role == user, CR == 1, Response == 2#0000010 ->    % User side Response (RNR)
 	% Set peer receiver busy
 	NextStateData = StateData#state{peer_receiver_busy = true},
 	% V(A)<=N(R)<=V(S)?
@@ -1617,7 +1617,7 @@ timer_recovery('ACKNOWLEDGE PENDING', StateData)
 	% Clear acknowledge pending
 	case StateData#state.role of
 		network -> CR = 0;
-		_ -> CR = 1
+		user -> CR = 1
 	end,
 	% F=0
 	RR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
@@ -1633,7 +1633,7 @@ timer_recovery('ACKNOWLEDGE PENDING', StateData) ->
 timer_recovery({'DL', 'UNIT DATA', request, Data}, StateData) when is_binary(Data) ->
 	case StateData#state.role of
 		network -> CR = 1;
-		_ -> CR = 0
+		user -> CR = 0
 	end,
 	% P=0
 	UI = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
@@ -1701,7 +1701,7 @@ establish_data_link(StateData) ->
 	NewStateData = clear_exception_conditions(StateData),
 	case StateData#state.role of
 		network -> CR = 1;
-		_ -> CR = 0
+		user -> CR = 0
 	end,
 	% P=1
 	SABME = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1, 2#011:3, 1:1, 2#11:2, 2#11:2>>,
@@ -1730,7 +1730,7 @@ clear_exception_conditions(StateData) ->
 transmit_enquiry(StateData) ->
 	case StateData#state.role of
 		network -> CR = 1;
-		_ -> CR = 0
+		user -> CR = 0
 	end,
 	% Own receiver busy?
 	case StateData#state.own_receiver_busy of
@@ -1756,7 +1756,7 @@ transmit_enquiry(StateData) ->
 enquiry_response(StateData) ->
 	case StateData#state.role of
 		network -> CR = 0;
-		_ -> CR = 1
+		user -> CR = 1
 	end,
 	% Own receiver busy?
 	case StateData#state.own_receiver_busy of
@@ -1799,7 +1799,7 @@ send_iframes(_, []) -> ok;
 send_iframes(StateData, [Data|T]) ->
 	case StateData#state.role of
 		network -> CR = 1;
-		_ -> CR = 0
+		user -> CR = 0
 	end,
 	% P=0
 	I = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
@@ -1816,7 +1816,7 @@ send_uiframes(_, []) -> ok;
 send_uiframes(StateData, [Data|T]) ->
 	case StateData#state.role of
 		network -> CR = 1;
-		_ -> CR = 0
+		user -> CR = 0
 	end,
 	UI = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
 			2#000:3, 0:1, 2#00:2, 2#11:2, Data/binary>>,

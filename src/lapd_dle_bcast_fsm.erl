@@ -38,7 +38,7 @@
 
 init([MUX, SAPI, Options]) ->
 	Role = case lists:keysearch(role, 1, Options) of
-		{value, Value} -> Value;
+		{value, network} -> network;
 		_ -> user
 	end,
 	process_flag(trap_exit, true),
@@ -49,7 +49,7 @@ init([MUX, SAPI, Options]) ->
 information_transfer({_, 'UNIT DATA', request, PDU}, StateData) when is_binary(PDU) ->
 	case StateData#state.role of
 		network -> CR = 1;
-		_ -> CR = 0
+		user -> CR = 0
 	end,
 	% P=0
 	UI = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, 127:7,
