@@ -34,7 +34,7 @@ init_lapd(timeout, StateData) ->
 	{ok, Events} = file:consult(File),
 	{LME, _CME, DLE} = lapd:open(LAPD, 0, StateData#state.tei, [{role, network}]),
 	lapd:bind(LME, DLE, self()),
-	{ok, link_connection_released, #state{sap = DLE, events = Events, next = 0}}.
+	{next_state, link_connection_released, #state{sap = DLE, events = Events, next = 0}}.
 
 link_connection_released({'DL', 'ESTABLISH', indication, _}, StateData) ->
 	case next_event(StateData) of

@@ -35,7 +35,7 @@ init_lapd(timeout, StateData) ->
 	{LME, _CME, DLE} = lapd:open(LAPD, 0, StateData#state.tei, [{role, network}]),
 	lapd:bind(LME, DLE, self()),
 	gen_fsm:send_event(DLE, {'DL', 'ESTABLISH', request, []}),
-	{ok, awaiting_establish, #state{sap = DLE, events = Events, next = 0}}.
+	{next_state, awaiting_establish, #state{sap = DLE, events = Events, next = 0}}.
 
 link_connection_released({'DL', 'ESTABLISH', indication, _}, StateData) ->
 	{next_state, link_conection_established, StateData};

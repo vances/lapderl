@@ -7,7 +7,7 @@ init([NAServerName, BoardName, BoardNumber, BSCLapdId, BTSLapdId, TEIs]) ->
 	BSCChildSpec = init_lapd(bsc, NAServerName, BSCLapdId),
 	BTSChildSpec = init_lapd(bts, NAServerName, BTSLapdId),
 	TEIChildSpecs = init_tei(TEIs, []),
-	{ok, {{one_for_one, 10, 60}, [NAChildSpec, BSCChildSpec, BTSChildSpec] ++ TEIChildSpecs}}.
+	{ok, {{one_for_one, 0, 1}, [NAChildSpec, BSCChildSpec, BTSChildSpec] ++ TEIChildSpecs}}.
 
 init_na(NAServerName, BoardName, BoardNumber) ->
 	StartArgs = [NAServerName, BoardName, BoardNumber],
