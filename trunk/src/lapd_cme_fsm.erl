@@ -35,12 +35,12 @@
 
 -record(state, {lme, dle, sapi, tei, role}).
 
-init([_Sup, _PhySAP, SAPI, LME, Options]) ->
+init([_Sup, _PhySAP, SAPI, TEI, LME, Options]) ->
 	Role = case lists:keysearch(role, 1, Options) of
 		{value, Value} -> Value;
 		_ -> user
 	end,
-	{ok, await_bind, #state{lme = LME, sapi = SAPI, role = Role}}.
+	{ok, await_bind, #state{lme = LME, sapi = SAPI, tei = TEI, role = Role}}.
 
 await_bind({'MDL', 'BIND', request, {_CME, DLE, _USAP}}, StateData) ->
 	{next_state, active, StateData#state{dle = DLE}}.

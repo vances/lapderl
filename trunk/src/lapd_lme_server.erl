@@ -28,21 +28,42 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 		terminate/2, code_change/3]).
 
--record(state, {sapsup, physap, saps = []}).
--record(sap, {dle, cme, sapi, sup, usap}).
+-record(state, {sapsup, mux, saps = []}).
+-record(sap, {dle, cme, sapi, tei, usap}).
 
-init([PhySAP]) ->
+init([]) ->
 	process_flag(trap_exit, true),
-	{ok, #state{physap = PhySAP}}.
+	{ok, #state{}}.
 
-handle_call({'SMAP', 'OPEN', request, {SapSup, SAPI, Options}}, {Pid, _Tag}, State) ->
-	case supervisor:start_child(SapSup, [[SapSup, State#state.physap, SAPI, self(), Options]]) of
+%% handle a lapd:open/4 call for a broadcast DLE
+handle_call({'SMAP', 'OPEN', request, {SapSup, SAPI, 127, Options}}, {Pid, _Tag}, State) ->
+	case supervisor:start_child(SapSup, [[State#state.mux, SAPI, Options]]) of
 		{ok, CeSup} ->
-			link(CeSup),
+			Children = supervisor:which_children(CeSup),
+			{value, {dle, DLE, _, _}} = lists:keysearch(dle, 1, Children),
+			gen_fsm:send_event(State#state.mux, {'MDL', 'OPEN', request, {bcast, SAPI, DLE}}),
+			NewState = State#state{sapsup = SapSup},
+			{reply, {self(), undefined, DLE}, NewState};
+		{error, Reason} ->
+			exit(Pid, Reason),
+			{noreply, State}
+	end;
+%% handle a lapd:open/4 call for a point-to-point DLE
+handle_call({'SMAP', 'OPEN', request, {SapSup, SAPI, TEI, Options}}, {Pid, _Tag}, State) ->
+	case supervisor:start_child(SapSup, [[SapSup, State#state.mux, SAPI, self(), Options]]) of
+		{ok, CeSup} ->
 			Children = supervisor:which_children(CeSup),
 			{value, {cme, CME, _, _}} = lists:keysearch(cme, 1, Children),
 			{value, {dle, DLE, _, _}} = lists:keysearch(dle, 1, Children),
-			SapRec = #sap{sapi = SAPI, cme = CME, dle = DLE, sup = CeSup},
+			link(DLE),
+			gen_fsm:send_event(State#state.mux, {'MDL', 'OPEN', request, {p2p, SAPI, DLE}}),
+			case TEI of
+				X when is_integer(X), X >= 0, X =< 63 ->
+					gen_fsm:send_event(DLE, {'MDL', 'ASSIGN', request, {TEI, DLE}}),
+					SapRec = #sap{sapi = SAPI, tei = TEI, cme = CME, dle = DLE};
+				_ ->
+					SapRec = #sap{sapi = SAPI, cme = CME, dle = DLE}
+			end,
 			NewSaps = sap_insert(SapRec, State#state.saps),
 			NewState = State#state{sapsup = SapSup, saps = NewSaps},
 			{reply, {self(), CME, DLE}, NewState};
@@ -50,8 +71,9 @@ handle_call({'SMAP', 'OPEN', request, {SapSup, SAPI, Options}}, {Pid, _Tag}, Sta
 			exit(Pid, Reason),
 			{noreply, State}
 	end;
-handle_call({'SMAP', 'BIND', request, {DLE, USAP}}, {Pid, _Tag}, State) ->
+handle_call({'SMAP', 'BIND', request, {DLE, USAP}}, _From, State) ->
 	case catch sap_search({dle, DLE}, State#state.saps) of
+		% point-to-point DLE
 		SapRec when is_record(SapRec, sap) ->
 			CME = SapRec#sap.cme,
 			gen_fsm:send_event(DLE, {'MDL', 'BIND', request, {CME, DLE, USAP}}),
@@ -60,29 +82,23 @@ handle_call({'SMAP', 'BIND', request, {DLE, USAP}}, {Pid, _Tag}, State) ->
 			NewState = State#state{saps = NewSaps},
 			{reply, ok, NewState};
 		_ ->
-			exit(Pid, badarg),
-			{noreply, State}
-	end;
-handle_call({'SMAP', 'CLOSE', request, DLE}, {Pid, _Tag}, State) ->
-	case catch sap_search({dle, DLE}, State#state.saps) of
-		SapRec when is_record(SapRec, sap) ->
-			exit(SapRec#sap.sup, shutdown),
-			{reply, ok, State};
-		_ ->
-			exit(Pid, badarg),
-			{noreply, State}
+			% broadcast DLE
+			gen_fsm:send_event(DLE, {'MDL', 'BIND', request, {undefined, DLE, USAP}}),
+			{reply, ok, State}
 	end;
 handle_call(Request, _From, State) ->
 	error_logger:info_report([{module, ?MODULE}, {line, ?LINE},
 			{message, Request}, {from, from}]),
 	{noreply, State}.
 
+handle_cast({mux, MUX}, State) ->
+	{noreply, State#state{mux = MUX}};
 handle_cast(Request, State) ->
 	error_logger:info_report([{module, ?MODULE}, {line, ?LINE}, {message, Request}]),
 	{noreply, State}.
 	
 handle_info({'EXIT', Pid, _Reason}, State) ->
-	SapRec = sap_search({sup, Pid}, State#state.saps),
+	SapRec = sap_search({dle, Pid}, State#state.saps),
 	NewState = State#state{saps = sap_delete(SapRec, State#state.saps)},
 	{noreply, NewState};
 handle_info(Info, State) ->
@@ -99,8 +115,6 @@ code_change(_OldVsn, State, _Extra) ->
 %%---------------------------------------------------------------------
 
 sap_search({dle, DLE}, [SapRec | _]) when SapRec#sap.dle == DLE ->
-	SapRec;
-sap_search({sup, Sup}, [SapRec | _]) when SapRec#sap.sup == Sup ->
 	SapRec;
 sap_search(Key, [_ | T]) ->
 	sap_search(Key, T).

@@ -20,12 +20,19 @@
 -behaviour(supervisor).
 -export([init/1]).
 
-init(Args) ->
+%% broadcast DLE
+init([_MUX, _SAPI, _Options] = Args) ->
+	DLEStartArgs = [lapd_dle_bcast_fsm, Args, []],
+	DLEStartFunc = {gen_fsm, start_link, DLEStartArgs},
+	DLEChildSpec = {dle, DLEStartFunc, transient, 4000, worker, [lapd_dle_bcast_fsm]},
+	{ok, {{one_for_one, 0, 1}, [DLEChildSpec]}};
+%% point-to-point DLE
+init([_Self, _MUX, _SAPI, _LME, _Options] = Args) ->
 	CMEStartArgs = [lapd_cme_fsm, Args, []],
 	CMEStartFunc = {gen_fsm, start_link, CMEStartArgs},
 	CMEChildSpec = {cme, CMEStartFunc, transient, 4000, worker, [lapd_cme_fsm]},
-	DLEStartArgs = [lapd_dle_fsm, Args, []],
+	DLEStartArgs = [lapd_dle_p2p_fsm, Args, []],
 	DLEStartFunc = {gen_fsm, start_link, DLEStartArgs},
-	DLEChildSpec = {dle, DLEStartFunc, transient, 4000, worker, [lapd_dle_fsm]},
+	DLEChildSpec = {dle, DLEStartFunc, transient, 4000, worker, [lapd_dle_p2p_fsm]},
 	{ok, {{one_for_one, 0, 1}, [CMEChildSpec, DLEChildSpec]}}.
 
