@@ -11,5 +11,6 @@
 		{env,          [{na_servername, {local, na}},
 		                    {na_boardname, "/dev/pri0"}, {na_boardnumber, 0},
 		                    {bsc_lapdid, 0}, {bts_lapdid, 32},
+		                    {file, "events.txt"},
 		                    {teis, [1, 2, 3, 4]}]},
 		{mod,          []}]}.
