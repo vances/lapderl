@@ -27,7 +27,7 @@ init([_MUX, _SAPI, _Options] = Args) ->
 	DLEChildSpec = {dle, DLEStartFunc, transient, 4000, worker, [lapd_dle_bcast_fsm]},
 	{ok, {{one_for_one, 0, 1}, [DLEChildSpec]}};
 %% point-to-point DLE
-init([_Self, _MUX, _SAPI, _LME, _Options] = Args) ->
+init([_MUX, _SAPI, _LME, _Options] = Args) ->
 	CMEStartArgs = [lapd_cme_fsm, Args, []],
 	CMEStartFunc = {gen_fsm, start_link, CMEStartArgs},
 	CMEChildSpec = {cme, CMEStartFunc, transient, 4000, worker, [lapd_cme_fsm]},
