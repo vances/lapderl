@@ -980,7 +980,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 	VA = StateData#state.'V(A)',
 	VS = StateData#state.'V(S)',
 	VR = StateData#state.'V(R)',
-	NextStateData = case StateData#state.own_receiver_busy of
+	StateData2 = case StateData#state.own_receiver_busy of
 		true ->
 			% Discard INFORMATION
 			% P=1?
@@ -1057,10 +1057,10 @@ multiple_frame_established({'PH', 'DATA', indication,
 	end,
 	% ref:  ETS 300 125 Figure B-7/Q.921 (9 of 10) connector (3)
 	% V(A) <= N(R) <= V(S)?
-	case validate_nr(StateData#state.'V(A)', NR, StateData#state.'V(S)') of
+	case validate_nr(StateData2#state.'V(A)', NR, StateData2#state.'V(S)') of
 		true ->
 			% V(A)=N(R)
-			NextStateData = acknowledge_iqueue(StateData, NR),
+			NextStateData = acknowledge_iqueue(StateData2, NR),
 			% Peer receiver busy?
 			case NextStateData#state.peer_receiver_busy of
 				true ->
@@ -1068,7 +1068,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 					{next_state, multiple_frame_established, NextStateData};
 				_ ->
 					% N(R)=V(S)?
-					VS = StateData#state.'V(S)',
+					VS = NextStateData#state.'V(S)',
 					case NR of
 						VS ->          % true
 							% Stop T200
