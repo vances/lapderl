@@ -931,14 +931,16 @@ multiple_frame_established({'PH', 'DATA', indication,
 	case validate_nr(NextStateData2#state.'V(A)', NR, NextStateData2#state.'V(S)') of
 		true ->
 			% V(A)=N(R)
-			NewStateData = acknowledge_iqueue(NextStateData2, NR),
+			NextStateData3 = acknowledge_iqueue(NextStateData2, NR),
 			% Stop T200
 			% Start T203
-			cancel_timer(NewStateData#state.t200_ref),
-			cancel_timer(NewStateData#state.t203_ref),
-			T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expiry),
-			{next_state, multiple_frame_established,
-					NewStateData#state{t200_ref = undefined, t203_ref = T203_ref}};
+			cancel_timer(NextStateData3#state.t200_ref),
+			cancel_timer(NextStateData3#state.t203_ref),
+			T203_ref = gen_fsm:send_event_after(NextStateData3#state.t203, t203_expiry),
+			NextStateData4 = NextStateData3#state{t200_ref = undefined, t203_ref = T203_ref},
+			% Invoke retransmission
+			NewStateData = transmit_iqueue(NextStateData4#state{'V(S)' = NR}),
+			{next_state, multiple_frame_established, NewStateData};
 		false ->
 			% N(R) error recovery
 			% Stop T203
@@ -1417,8 +1419,9 @@ timer_recovery({'PH', 'DATA', indication,
 					cancel_timer(NextStateData2#state.t200_ref),
 					cancel_timer(NextStateData2#state.t203_ref),
 					T203_ref = gen_fsm:send_event_after(NextStateData2#state.t203, t203_expiry),
-					NewStateData = NextStateData2#state{t200_ref = undefined, t203_ref = T203_ref},
+					NextStateData3 = NextStateData2#state{t200_ref = undefined, t203_ref = T203_ref},
 					% Invoke retransmission
+					NewStateData = transmit_iqueue(NextStateData3#state{'V(S)' = NR}),
 					{next_state, multiple_frame_established, NewStateData};
 				0 ->
 					{next_state, timer_recovery, NextStateData2}
@@ -1472,8 +1475,9 @@ timer_recovery({'PH', 'DATA', indication,
 					% Restart T200
 					cancel_timer(NextStateData2#state.t200_ref),
 					T200_ref = gen_fsm:send_event_after(NextStateData2#state.t200, t200_expiry),
-					NewStateData = NextStateData2#state{t200_ref = T200_ref},
+					NextStateData3 = NextStateData2#state{t200_ref = T200_ref},
 					% Invoke retransmission
+					NewStateData = transmit_iqueue(NextStateData3#state{'V(S)' = NR}),
 					{next_state, multiple_frame_established, NewStateData};
 				0 ->
 					{next_state, timer_recovery, NextStateData2}
