@@ -644,7 +644,7 @@ multiple_frame_established({'DL', 'RELEASE', request, _DlParms}, StateData) ->
 	% Restart T200
 	cancel_timer(NewStateData#state.t203_ref),
 	cancel_timer(NewStateData#state.t200_ref),
-	T200_ref = gen_fsm:send_event_after(NewStateData#state.t200),
+	T200_ref = gen_fsm:send_event_after(NewStateData#state.t200, t200_expiry),
 	{next_state, awaiting_release, NewStateData#state{t200_ref = T200_ref, t203_ref = undefined}};
 multiple_frame_established({'DL', 'DATA', request, Data}, StateData) when is_binary(Data),
 		StateData#state.peer_receiver_busy == true  ->
@@ -663,7 +663,7 @@ multiple_frame_established({'DL', 'DATA', request, Data}, StateData) when is_bin
 			% Stop T203
 			% Start T200
 			cancel_timer(NewStateData#state.t203_ref),
-			T200_ref = gen_fsm:send_event_after(NewStateData#state.t200),
+			T200_ref = gen_fsm:send_event_after(NewStateData#state.t200,  t200_expiry),
 			{next_state, multiple_frame_esatblished, 
 					NewStateData#state{t203_ref = undefined, t200 = T200_ref}}
 	end;
@@ -1691,7 +1691,7 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %% ref: ETS 300 125 Figure B-9/Q.921 (4 of 5)
 nr_error_recovery(StateData) ->
 	% MDL ERROR indication
-	gen_fsm:send_event(StateData#state.cme, 'J'),
+	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'J'}),
 	% Clear layer 3 initiated
 	establish_data_link(StateData#state{layer3_initiated = false}).
 
@@ -1706,7 +1706,7 @@ establish_data_link(StateData) ->
 	% P=1
 	SABME = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1, 2#011:3, 1:1, 2#11:2, 2#11:2>>,
 	% TX SABME
-	gen_fsm:send_event(NewStateData#state.mux, SABME),
+	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, SABME}),
 	% RC=0
 	% Restart T200
 	% Stop T203
