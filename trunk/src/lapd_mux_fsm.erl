@@ -47,8 +47,8 @@
 %%% 	for received frames to send a primitive event for handling by the
 %%% 	<tt>lapd_mux_fsm</tt> behaviour module:</p>
 %%%
-%%% 	<pre>handle_info({Port, {'L3L4m', _CtrlBin, PDU}}, StateName, StateData) -&gt;
-%%% 	     gen_fsm:send_event(self(), {'PH', 'DATA', indication, PDU}),
+%%% 	<pre>handle_info({_Port, 'L3L4m', _CtrlBin, _DataBin}, StateName, StateData) -&gt;
+%%% 	     gen_fsm:send_event(self(), {'PH', 'DATA', indication, DataBin}),
 %%% 	     {next_state, StateName, StateData}.
 %%% 	</pre>
 %%% 	

@@ -86,12 +86,12 @@ handle_sync_event(_Event, _From, StateName, StateData) ->
 	{next_state, StateName, StateData}.
 
 %% handle a control message received from netaccess
-handle_info({Port, {'L3L4m', CtrlBin, _}}, StateName, StateData) 
+handle_info({Port, 'L3L4m', CtrlBin, _}, StateName, StateData) 
 		when is_binary(CtrlBin), size(CtrlBin) > 0 ->
 	L3L4_rec = iisdn:l3_to_l4(CtrlBin),
 	StateName({Port, L3L4_rec}, StateData);
 %% handle a frame received from netaccess' layer 1
-handle_info({_Port, {'L3L4m', _, PDU}}, StateName, StateData) 
+handle_info({_Port, 'L3L4m', _, PDU}, StateName, StateData) 
 		when is_binary(PDU), size(PDU) > 0 ->
 	gen_fsm:send_event(self(), {'PH', 'DATA', indication, PDU}),
 	{next_state, StateName, StateData};
