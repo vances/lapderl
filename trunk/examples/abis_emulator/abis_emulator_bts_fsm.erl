@@ -32,7 +32,7 @@ init_lapd(timeout, StateData) ->
 	{value, {bsc, LAPD, _, _}} = lists:keysearch(bsc, 1, Children),
 	{ok, File} = application:get_env(file), % TODO:  per {lapd, tei}
 	{ok, Events} = file:consult(File),
-	{LME, _CME, DLE} = lapd:open(LAPD, 0, StateData#state.tei, [{role, network}]),
+	{LME, _CME, DLE} = lapd:open(LAPD, 0, StateData#state.tei, []),
 	lapd:bind(LME, DLE, self()),
 	gen_fsm:send_event(DLE, {'DL', 'ESTABLISH', request, []}),
 	{next_state, awaiting_establish, #state{sap = DLE, events = Events, next = 0}}.
