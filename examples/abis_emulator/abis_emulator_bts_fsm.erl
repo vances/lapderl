@@ -18,16 +18,21 @@
 -behaviour(gen_fsm).
 
 -export([init/1, terminate/3]).
--export([link_connection_released/2, awaiting_establish/2,
+-export([init_lapd/2, link_connection_released/2, awaiting_establish/2,
 		link_conection_established/2, awaiting_release/2]).
 -export([handle_event/3, handle_info/3, handle_sync_event/4, code_change/4]).
 
--record(state, {sap, events, next}).
+-record(state, {sup, tei, sap, events, next}).
 
-init([LAPD, TEI]) ->
+init([Sup, TEI]) ->
+	{ok, init_lapd, #state{sup = Sup, tei = TEI}, 100}.
+
+init_lapd(timeout, StateData) ->
+	Children = supervisor:which_children(StateData#state.sup),
+	{value, {bsc, LAPD, _, _}} = lists:keysearch(bsc, 1, Children),
 	{ok, File} = application:get_env(file), % TODO:  per {lapd, tei}
 	{ok, Events} = file:consult(File),
-	{LME, _CME, DLE} = lapd:open(LAPD, 0, TEI, [{role, network}]),
+	{LME, _CME, DLE} = lapd:open(LAPD, 0, StateData#state.tei, [{role, network}]),
 	lapd:bind(LME, DLE, self()),
 	gen_fsm:send_event(DLE, {'DL', 'ESTABLISH', request, []}),
 	{ok, awaiting_establish, #state{sap = DLE, events = Events, next = 0}}.
