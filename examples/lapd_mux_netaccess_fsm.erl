@@ -32,25 +32,29 @@
 -export([init/1, handle_event/3, handle_sync_event/4,
 		handle_info/3, terminate/3, code_change/4]).
 
--record(state, {port, lapdid}).
+-record(state, {na, port, lapdid}).
 
 %%----------------------------------------------------------------------
 %%  The gen_fsm call backs
 %%----------------------------------------------------------------------
 
-init([Port, LapdId]) ->
-	{ok, deactivated, #state{port = Port, lapdid = LapdId}}.
+%% usage:
+%%       {ok, NA} = netaccess:start_link("/dev/pri0", 0),
+%%       {ok, LapdSup} = lapd:start_link(lapd_mux_netaccess_fsm, [NA, 0], []).
+%%
+init([NA, LapdId]) ->
+	{ok, deactivated, #state{na = NA, lapdid = LapdId}}.
                 
 deactivated({'PH', 'ACTIVATE', request, _}, StateData) ->
+	Port = netaccess:open(StateData#state.na),
 	L1 = #level1{l1_mode = ?IISDNl1modHDLC},
 	L2Parms = #l2_lap_params{mode = ?IISDNl2modDISABLED},
 	D = #data_interface{enable = 1, data_channel = StateData#state.lapdid},
 	L2 = #level2{par = L2Parms, data_interface = D},
 	ProtoData = #ena_proto_data{level1 = L1, level2 = L2},
 	% send an L4L3mENABLE_PROTOCOL to activate the channel
-	netaccess:enable_protocol(StateData#state.port,
-			StateData#state.lapdid, ProtoData),
-	{next_state, deactivated, StateData};
+	netaccess:enable_protocol(Port, StateData#state.lapdid, ProtoData),
+	{next_state, deactivated, StateData#state{port = Port}};
 deactivated({_Port, L3L4m}, StateData) when is_record(L3L4m, l3_to_l4),
 		L3L4m#l3_to_l4.msgtype == ?L3L4mPROTOCOL_STATUS ->
 	P = iisdn:protocol_stat(L3L4m#l3_to_l4.data),
