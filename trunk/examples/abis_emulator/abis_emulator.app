@@ -13,4 +13,4 @@
 		                    {bsc_lapdid, 0}, {bts_lapdid, 32},
 		                    {file, "events.txt"},
 		                    {teis, [1, 2, 3, 4]}]},
-		{mod,          {abis_emulator_app, []}]}.
+		{mod,          {abis_emulator_app, []}}]}.
