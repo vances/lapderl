@@ -11,7 +11,7 @@
 %%% @author Vance Shipley <vances@motivity.ca>
 %%%
 %%% @doc An finite state machine which emulates the Base Transceiver
-%%% 		Station (BTS) side of a contrived Abis protocol session.
+%%% 		Station (BTS) side of a contrived GSM Abis protocol session.
 %%%
          
 -module(abis_emulator_bts_fsm).
@@ -22,13 +22,15 @@
 		link_conection_established/2, awaiting_release/2]).
 -export([handle_event/3, handle_info/3, handle_sync_event/4, code_change/4]).
 
--record(state, {sap, next}).
+-record(state, {sap, events, next}).
 
 init([LAPD, TEI]) ->
+	{ok, File} = application:get_env(file), % TODO:  per {lapd, tei}
+	{ok, Events} = file:consult(File),
 	{LME, _CME, DLE} = lapd:open(LAPD, 0, TEI, [{role, network}]),
 	lapd:bind(LME, DLE, self()),
 	gen_fsm:send_event(DLE, {'DL', 'ESTABLISH', request, []}),
-	{ok, awaiting_establish, #state{sap = DLE, next = 0}}.
+	{ok, awaiting_establish, #state{sap = DLE, events = Events, next = 0}}.
 
 link_connection_released({'DL', 'ESTABLISH', indication, _}, StateData) ->
 	{next_state, link_conection_established, StateData};
@@ -47,9 +49,9 @@ awaiting_establish({'DL', 'ESTABLISH', confirm, _}, StateData) ->
 	case next_event(StateData) of
 		{bts, Timeout, _Type, _PDU} ->
 			{next_state, link_conection_established, StateData, Timeout};
-		_ ->
-			{next_state, link_conection_established, StateData};
-	end,
+		{bsc, _, _, _} ->
+			{next_state, link_conection_established, StateData}
+	end;
 awaiting_establish({'DL', 'RELEASE', indication, _}, StateData) ->
 	{next_state, link_conection_released, StateData};
 awaiting_establish({'DL', 'UNIT DATA', indication, _}, StateData) ->
@@ -61,13 +63,15 @@ awaiting_establish(Event, StateData) ->
 		{state, awaiting_establish}]),
 	{next_state, awaiting_establish, StateData}.
 
-link_conection_established({'DL', 'DATA', indication, PDU}, StateData) ->
-	{bsc, _, I, PDU} = next_event(StateData) 
+link_conection_established({'DL', UI_I, indication, PDU}, StateData)
+		when UI_I == 'DATA'; UI_I == 'UNIT DATA' -> 
+	{bsc, _, _, PDU} = next_event(StateData), 
 	NewStateData = StateData#state{next = StateData#state.next + 1},
-	case next_event(StateData) of
+	case next_event(NewStateData) of
 		{bts, Timeout, _Type, _PDU} ->
 			{next_state, link_connection_established, NewStateData, Timeout};
-		{bsc, _, _Type, _PDU} ->
+		{bsc, _, _, _PDU} ->
+			{next_state, link_connection_established, NewStateData}
 	end;
 link_conection_established({'DL', 'UNIT DATA', indication, _}, StateData) ->
 	{next_state, link_connection_established, StateData};
@@ -79,16 +83,16 @@ link_conection_established({'DL', 'RELEASE', indication, _}, StateData) ->
 	{next_state, link_connection_released, StateData};
 link_conection_established(timeout, StateData) ->
 	case next_event(StateData) of
-		{bts, _Timeout, I, PDU} ->
+		{bts, _Timeout, i, PDU} ->
 			gen_fsm:send_event(StateData#state.sap, {'DL', 'DATA', indication, PDU});
-		{bts, _Timeout, UI, PDU} ->
-			gen_fsm:send_event(StateData#state.sap, {'DL', 'UNIT DATA', indication, PDU});
+		{bts, _Timeout, ui, PDU} ->
+			gen_fsm:send_event(StateData#state.sap, {'DL', 'UNIT DATA', indication, PDU})
 	end,
 	NewStateData = StateData#state{next = StateData#state.next + 1},
-	case next_event(StateData) of
+	case next_event(NewStateData) of
 		{bts, Timeout, _Type, _PDU} ->
 			{next_state, link_conection_established, NewStateData, Timeout};
-		_ ->
+		{bsc, _, _, _} ->
 			{next_state, link_conection_established, NewStateData}
 	end;
 link_conection_established(Event, StateData) ->
@@ -130,3 +134,5 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %% internal functions
 %%---------------------------------------------------------------------
 
+next_event(StateData) ->
+	lists:nth(StateData#state.next, StateData#state.events).
