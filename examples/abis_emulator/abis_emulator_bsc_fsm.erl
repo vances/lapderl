@@ -19,7 +19,7 @@
 
 -export([init/1, terminate/3]).
 -export([init_lapd/2, link_connection_released/2, awaiting_establish/2,
-		link_conection_established/2, awaiting_release/2]).
+		link_connection_established/2, awaiting_release/2]).
 -export([handle_event/3, handle_info/3, handle_sync_event/4, code_change/4]).
 
 -record(state, {sup, tei, sap, events, next}).
