@@ -94,8 +94,8 @@ tei_unassigned({'MDL', 'ASSIGN', request, {TEI, CES}}, StateData)
 	NewStateData = transmit_uiqueue(StateData#state{tei = TEI}),
 	{next_state, tei_assigned, NewStateData};
 tei_unassigned(Event, StateData) ->
-	error_logger:info_report(["Unhandled message", {module, ?MODULE},
-			{state, tei_unassigned}, Event]),
+	error_logger:info_report(["Unhandled message", {dle, self()},
+			{module, ?MODULE}, {state, tei_unassigned}, Event]),
 	{next_state, tei_unassigned, StateData}.
 
 
@@ -120,8 +120,8 @@ assign_awaiting_tei({'PH', 'DEACTIVATE', indication, _PhParms}, StateData) ->
 	NewStateData = StateData#state{ui_queue = []},
 	{next_state, tei_unassigned, NewStateData};
 assign_awaiting_tei(Event, StateData) ->
-	error_logger:info_report(["Unhandled message", {module, ?MODULE},
-			{state, assign_awaiting_tei}, Event]),
+	error_logger:info_report(["Unhandled message", {dle, self()},
+			{module, ?MODULE}, {state, assign_awaiting_tei}, Event]),
 	{next_state, assign_awaiting_tei, StateData}.
 
 
@@ -152,8 +152,8 @@ establish_awaiting_tei({'PH', 'DEACTIVATE', indication, _PhParms}, StateData) ->
 	NewStateData#state.usap ! {'DL', 'RELEASE', indication, undefined},
 	{next_state, tei_unassigned, NewStateData};
 establish_awaiting_tei(Event, StateData) ->
-	error_logger:info_report(["Unhandled message", {module, ?MODULE},
-			{state, establish_awaiting_tei}, Event]),
+	error_logger:info_report(["Unhandled message", {dle, self()},
+			{module, ?MODULE}, {state, establish_awaiting_tei}, Event]),
 	{next_state, establish_awaiting_tei, StateData}.
 
 
@@ -293,8 +293,8 @@ tei_assigned({'PH', 'DATA', indication, _DlParms}, StateData) ->
 %	gen_fsm:send_event(StateData#state.cme, 'O'),
 %	{next_state, tei_assigned, StateData};
 tei_assigned(Event, StateData) ->
-	error_logger:info_report(["Unhandled message", {module, ?MODULE},
-			{state, tei_assigned}, Event]),
+	error_logger:info_report(["Unhandled message", {dle, self()},
+			{module, ?MODULE}, {state, tei_assigned}, Event]),
 	{next_state, tei_assigned, StateData}.
 
 %% ref:  ETS 300 125 Figure B-5/Q.921 (1 of 3) 
@@ -486,8 +486,8 @@ awaiting_establishment({'PH', 'DATA', indication, _DlParms}, StateData) ->
 %	gen_fsm:send_event(StateData#state.cme, 'O'),
 %	{next_state, awaiting_establishment, StateData};
 awaiting_establishment(Event, StateData) ->
-	error_logger:info_report(["Unhandled message", {module, ?MODULE},
-			{state, awaiting_establishment}, Event]),
+	error_logger:info_report(["Unhandled message", {dle, self()},
+			{module, ?MODULE}, {state, awaiting_establishment}, Event]),
 	{next_state, awaiting_establishment, StateData}.
 
 %% ref:  ETS 300 125 Figure B-6/Q.921 (1 of 2) 
@@ -616,8 +616,8 @@ awaiting_release({'PH', 'DATA', indication, _DlParms}, StateData) ->
 %	gen_fsm:send_event(StateData#state.cme, 'O'),
 %	{next_state, awaiting_release, StateData};
 awaiting_release(Event, StateData) ->
-	error_logger:info_report(["Unhandled message", {module, ?MODULE},
-			{state, awaiting_release}, Event]),
+	error_logger:info_report(["Unhandled message", {dle, self()},
+			{module, ?MODULE}, {state, awaiting_release}, Event]),
 	{next_state, awaiting_release, StateData}.
 
 %% ref:  ETS 300 125 Figure B-7/Q.921 (1 of 10) 
@@ -1160,8 +1160,8 @@ multiple_frame_established({'PH', 'DATA', indication, _DlParms}, StateData) ->
 %	gen_fsm:send_event(StateData#state.cme, 'O'),
 %	{next_state, multiple_frame_established, StateData};
 multiple_frame_established(Event, StateData) ->
-	error_logger:info_report(["Unhandled message", {module, ?MODULE},
-			{state, multiple_frame_established}, Event]),
+	error_logger:info_report(["Unhandled message", {dle, self()},
+			{module, ?MODULE}, {state, multiple_frame_established}, Event]),
 	{next_state, multiple_frame_established, StateData}.
 
 
@@ -1648,8 +1648,8 @@ timer_recovery({'PH', 'DATA', indication, _DlParms}, StateData) ->
 %	gen_fsm:send_event(StateData#state.cme, 'O'),
 %	{next_state, timer_recovery, StateData};
 timer_recovery(Event, StateData) ->
-	error_logger:info_report(["Unhandled message", {module, ?MODULE},
-			{state, timer_recovery}, Event]),
+	error_logger:info_report(["Unhandled message", {dle, self()},
+			{module, ?MODULE}, {state, timer_recovery}, Event]),
 	{next_state, timer_recovery, StateData}.
 
 %% implementation specific state and primitive for associating a LAPD-User pid()

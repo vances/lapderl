@@ -77,8 +77,8 @@ information_transfer({'PH', 'DEACTIVATE', indication, _PhParms}, StateData) ->
 	% Discard UI queue
 	{next_state, information_transfer, StateData};
 information_transfer(Event, StateData) ->
-	error_logger:info_report(["Unhandled message", {module, ?MODULE},
-			{state, information_transfer}, Event]),
+	error_logger:info_report(["Unhandled message", {dle, self()},
+			{module, ?MODULE}, {state, information_transfer}, Event]),
 	{next_state, information_transfer, StateData}.
 
 %% implementation specific state and primitive for associating a LAPD-User pid()
