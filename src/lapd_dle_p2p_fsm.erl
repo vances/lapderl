@@ -28,7 +28,6 @@
 -behaviour(gen_fsm).
 
 -export([init/1, terminate/3]).
--export([await_bind/2]).
 -export([tei_unassigned/2, assign_awaiting_tei/2, establish_awaiting_tei/2,
 		tei_assigned/2, awaiting_establishment/2, awaiting_release/2,
 		multiple_frame_established/2, timer_recovery/2]).
@@ -62,20 +61,17 @@ init([Sup, PhySAP, SAPI, LME, Options]) ->
 		{value, Value} -> Value;
 		_ -> user
 	end,
+	process_flag(trap_exit, true),
 	StateData = #state{sup = Sup, mux = PhySAP, lme = LME, sapi = SAPI, role = Role},
 	{ok, await_bind, StateData}.
 
-%% implementation specific state and primitive for associating a LAPD-User pid()
-await_bind({'MDL', 'BIND', request, {CME, _DLE, USAP}}, StateData) ->
-	{next_state, tei_unassigned, StateData#state{usap = USAP, cme = CME}}.
-
 %% ref:  ETS 300 125 Figure B-3/Q.921 (1 of 3) 
 tei_unassigned({'DL', 'ESTABLISH', request, _DlParms}, StateData) ->
-	gen_fsm:send_event(StateData#state.lme,
+	catch gen_fsm:send_event(StateData#state.lme,
 			{'MDL', 'ASSIGN', indication, {undefined, self()}}),
 	{next_state, establish_awaiting_tei, StateData};
 tei_unassigned({'DL', 'UNIT DATA', request, Data}, StateData) when is_binary(Data) ->
-	gen_fsm:send_event(StateData#state.lme,
+	catch gen_fsm:send_event(StateData#state.lme,
 			{'MDL', 'ASSIGN', indication, {undefined, self()}}),
 	% UNIT DATA into UI queue
 	NewStateData = StateData#state{ui_queue = StateData#state.ui_queue ++ [Data]},
@@ -135,14 +131,14 @@ establish_awaiting_tei({'MDL', 'ERROR', response, _Reason}, StateData) ->
 	% Discard UI queue
 	NewStateData = StateData#state{ui_queue = []},
 	% DL RELEASE indication
-	gen_fsm:send_event(StateData#state.usap,
+	catch gen_fsm:send_event(StateData#state.usap,
 			{'DL', 'RELEASE', indication, undefined}),
 	{next_state, tei_unassigned, NewStateData};
 establish_awaiting_tei({'PH', 'DEACTIVATE', indication, _PhParms}, StateData) ->
 	% Discard UI queue
 	NewStateData = StateData#state{ui_queue = []},
 	% DL RELEASE indication
-	gen_fsm:send_event(StateData#state.usap,
+	catch gen_fsm:send_event(StateData#state.usap,
 			{'DL', 'RELEASE', indication, undefined}),
 	{next_state, tei_unassigned, NewStateData};
 establish_awaiting_tei(Event, StateData) ->
@@ -159,7 +155,7 @@ tei_assigned({'DL', 'ESTABLISH', request, _DlParms}, StateData) ->
 	{next_state, awaiting_establishment, NewStateData#state{layer3_initiated = true}};
 tei_assigned({'DL', 'RELEASE', request, _DlParms}, StateData) ->
 	% DL RELEASE confirm
-	gen_fsm:send_event(StateData#state.usap,
+	catch gen_fsm:send_event(StateData#state.usap,
 			{'DL', 'RELEASE', confirm, undefined}),
 	{next_state, tei_assigned, StateData};
 tei_assigned({'MDL', 'REMOVE', request, {_TEI, _CES}}, StateData) ->
@@ -188,7 +184,7 @@ tei_assigned({'PH', 'DATA', indication,
 	OutCR = 1 band bnot CR,
 	DM = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#000:3, P:1, 2#11:2, 2#11:2>>,
 	% TX DM
-	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, DM}),
+	catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, DM}),
 	{next_state, tei_assigned, StateData};
 tei_assigned({'PH', 'DATA', indication,
 		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
@@ -198,14 +194,14 @@ tei_assigned({'PH', 'DATA', indication,
 	OutCR = 1 band bnot CR,
 	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	% TX UA
-	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
+	catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
 	% Clear exception conditions
 	NextStateData = clear_exception_conditions(StateData),
 	% DL ESTABLISH indication
-	gen_fsm:send_event(NextStateData#state.usap, {'DL', 'ESTABLISH', indication, undefined}),
+	catch gen_fsm:send_event(NextStateData#state.usap, {'DL', 'ESTABLISH', indication, undefined}),
 	% V(S)=0, V(A)=0, V(R)=0
 	% Start T203
-	T203_ref = gen_fsm:send_event_after(NextStateData#state.t203, t203_expired),
+	T203_ref = catch gen_fsm:send_event_after(NextStateData#state.t203, t203_expired),
 	NewStateData = NextStateData#state{'V(S)' = 0, 'V(A)' = 0, 'V(R)' = 0, t203_ref = T203_ref},
 	{next_state, multiple_frame_established, NewStateData};
 tei_assigned({'PH', 'DATA', indication,
@@ -215,7 +211,7 @@ tei_assigned({'PH', 'DATA', indication,
 	OutCR = 1 band bnot CR,
 	DM = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#000:3, P:1, 2#11:2, 2#11:2>>,
 	% TX DM
-	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, DM}),
+	catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, DM}),
 	{next_state, tei_assigned, StateData};
 % ref:  ETS 300 125 Figure B-4/Q.921 (2 of 2) 
 tei_assigned({'PH', 'DATA', indication,
@@ -224,7 +220,7 @@ tei_assigned({'PH', 'DATA', indication,
 		StateData) ->
 	% F=1? (yes)
 	% MDL ERROR indication (C)
-	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'C'}),
+	catch gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'C'}),
 	{next_state, tei_assigned, StateData};
 tei_assigned({'PH', 'DATA', indication,
 		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
@@ -232,7 +228,7 @@ tei_assigned({'PH', 'DATA', indication,
 		StateData) ->
 	% F=1? (no)
 	% MDL ERROR indication (D)
-	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'D'}),
+	catch gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'D'}),
 	{next_state, tei_assigned, StateData};
 tei_assigned({'PH', 'DATA', indication,
 		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
@@ -267,7 +263,7 @@ tei_assigned({'DL', 'UNIT DATA', request, Data}, StateData) when is_binary(Data)
 	UI = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
 			2#000:3, 0:1, 2#00:2, 2#11:2, Data/binary>>,
 	% TX UI
-	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UI}),
+	catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UI}),
 	{next_state, tei_assigned, StateData};
 tei_assigned({'PH', 'DATA', indication, 
 		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
@@ -275,19 +271,19 @@ tei_assigned({'PH', 'DATA', indication,
 		Data/binary>>},                    % Information
 		StateData) ->
 	% DL UNIT DATA indication
-	gen_fsm:send_event(StateData#state.usap, {'DL', 'UNIT DATA', indication, Data}),
+	catch gen_fsm:send_event(StateData#state.usap, {'DL', 'UNIT DATA', indication, Data}),
 	{next_state, tei_assigned, StateData};
 % ref:  ETS 300 125 Figure B-9/Q.921 (3 of 5) 
 % ref:  ETS 300 125 5.8.5 Frame rejection condition
 tei_assigned({'PH', 'DATA', indication, _DlParms}, StateData) -> 
 	% MDL ERROR indication (L)
-	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'L'}),
+	catch gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'L'}),
 	{next_state, tei_assigned, StateData};
 %tei_assigned({'PH', 'DATA', indication, _DlParms}, StateData) -> 
 %	% MDL ERROR indication (M,N,O)
-%	gen_fsm:send_event(StateData#state.cme, 'M'),
-%	gen_fsm:send_event(StateData#state.cme, 'N'),
-%	gen_fsm:send_event(StateData#state.cme, 'O'),
+%	catch gen_fsm:send_event(StateData#state.cme, 'M'),
+%	catch gen_fsm:send_event(StateData#state.cme, 'N'),
+%	catch gen_fsm:send_event(StateData#state.cme, 'O'),
 %	{next_state, tei_assigned, StateData};
 tei_assigned(Event, StateData) ->
 	error_logger:info_report(["Unhandled message", {module, ?MODULE},
@@ -308,7 +304,7 @@ awaiting_establishment({'MDL', 'REMOVE', request, {_TEI, _CES}}, StateData) ->
 	% Discard I & UI queues
 	NewStateData = StateData#state{tei = undefined, i_queue = [], ui_queue = []},
 	% DL RELEASE indication
-	gen_fsm:send_event(StateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	catch gen_fsm:send_event(StateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
 	% Stop T200
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_unassigned, NewStateData#state{t200_ref = undefined}};
@@ -316,7 +312,7 @@ awaiting_establishment({'PH', 'DEACTIVATION', indication, _PhParms}, StateData) 
 	% Disacrd I & UI queues
 	NewStateData = StateData#state{i_queue = [], ui_queue = []},
 	% DL RELEASE indication
-	gen_fsm:send_event(StateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	catch gen_fsm:send_event(StateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
 	% Stop T200
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_assigned, NewStateData#state{t200_ref = undefined}};
@@ -338,7 +334,7 @@ awaiting_establishment({'PH', 'DATA', indication,
 	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	% F=P
 	% TX UA
-	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
+	catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
 	{next_state, awaiting_establishment, StateData};
 % ref:  ETS 300 125 Figure B-5/Q.921 (2 of 3) 
 awaiting_establishment({'PH', 'DATA', indication,
@@ -349,7 +345,7 @@ awaiting_establishment({'PH', 'DATA', indication,
 	% F=P
 	% TX UA
 	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
-	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
+	catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
 	{next_state, awaiting_establishment, StateData};
 % ref:  ETS 300 125 Figure B-4/Q.921 (2 of 2) 
 awaiting_establishment({'PH', 'DATA', indication,
@@ -359,7 +355,7 @@ awaiting_establishment({'PH', 'DATA', indication,
 	% F=1? (yes)
 	% Layer 3 initiated? (yes)
 	% DL ESTABLISH confirm
-	gen_fsm:send_event(StateData#state.usap, {'DL', 'ESTABLISH', confirm, undefined}),
+	catch gen_fsm:send_event(StateData#state.usap, {'DL', 'ESTABLISH', confirm, undefined}),
 	% Stop T200
 	cancel_timer(StateData#state.t200),
 	% Start T203
@@ -381,7 +377,7 @@ awaiting_establishment({'PH', 'DATA', indication,
 			StateData;
 		_ ->
 			% DL ESTABLISH indication
-			gen_fsm:send_event(StateData#state.usap,
+			catch gen_fsm:send_event(StateData#state.usap,
 					{'DL', 'ESTABLISH', confirm, undefined}),
 			% Discard I queue
 			StateData#state{i_queue = []}
@@ -399,7 +395,7 @@ awaiting_establishment({'PH', 'DATA', indication,
 		2#011:3, 0:1, 2#00:2, 2#11:2>>},   % Command (UA)
 		StateData) ->
 	% F=1? (no)
-	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'D'}),
+	catch gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'D'}),
 	{next_state, awaiting_establishment, StateData};
 % ref:  ETS 300 125 Figure B-5/Q.921 (2 of 3) 
 awaiting_establishment({'PH', 'DATA', indication,
@@ -410,7 +406,7 @@ awaiting_establishment({'PH', 'DATA', indication,
 	% Discard I queue
 	NewStateData = StateData#state{i_queue = []},
 	% DL RELEASE indication
-	gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
 	% Stop T200
 	cancel_timer(NewStateData#state.t200),
 	{next_state, tei_assigned, NewStateData#state{t200_ref = undefined}};
@@ -426,9 +422,9 @@ awaiting_establishment(t200_expired, StateData)
 	% Discard I queue
 	NewStateData = StateData#state{i_queue = []},
 	% MDL ERROR (G) indication
-	gen_fsm:send_event(NewStateData#state.cme, {'MDL', 'ERROR', indication, 'G'}),
+	catch gen_fsm:send_event(NewStateData#state.cme, {'MDL', 'ERROR', indication, 'G'}),
 	% DL RELEASE indication
-	gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
 	{next_state, tei_assigned, NewStateData};
 awaiting_establishment(t200_expired, StateData)  ->
 	% RC=N200? (no)
@@ -441,9 +437,9 @@ awaiting_establishment(t200_expired, StateData)  ->
 	% P=1
 	SABME = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1, 2#011:3, 1:1, 2#11:2, 2#11:2>>,
 	% TX SABME
-	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, SABME}),
+	catch gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, SABME}),
 	% Start T200
-	T200_ref = gen_fsm:send_event_after(StateData#state.t200, t200_expired),
+	T200_ref = catch gen_fsm:send_event_after(StateData#state.t200, t200_expired),
 	{next_state, awaiting_establishment, NewStateData#state{t200_ref = T200_ref}};
 awaiting_establishment({'DL', 'DATA', request, Data}, StateData)  when is_binary(Data),
 		StateData#state.layer3_initiated == true ->
@@ -462,7 +458,7 @@ awaiting_establishment({'DL', 'UNIT DATA', request, Data}, StateData) when is_bi
 	UI = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
 			2#000:3, 0:1, 2#00:2, 2#11:2, Data/binary>>,
 	% TX UI
-	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UI}),
+	catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UI}),
 	{next_state, awaiting_establishment, StateData};
 awaiting_establishment({'PH', 'DATA', indication, 
 		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
@@ -470,19 +466,19 @@ awaiting_establishment({'PH', 'DATA', indication,
 		Data/binary>>},                    % Information
 		StateData) ->
 	% DL UNIT DATA indication
-	gen_fsm:send_event(StateData#state.usap, {'DL', 'UNIT DATA', indication, Data}),
+	catch gen_fsm:send_event(StateData#state.usap, {'DL', 'UNIT DATA', indication, Data}),
 	{next_state, awaiting_establishment, StateData};
 % ref:  ETS 300 125 Figure B-9/Q.921 (3 of 5) 
 % ref:  ETS 300 125 5.8.5 Frame rejection condition
 awaiting_establishment({'PH', 'DATA', indication, _DlParms}, StateData) -> 
 	% MDL ERROR indication (L)
-	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'L'}),
+	catch gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'L'}),
 	{next_state, awaiting_establishment, StateData};
 %awaiting_establishment({'PH', 'DATA', indication, _DlParms}, StateData) -> 
 %	% MDL ERROR indication (M,N,O)
-%	gen_fsm:send_event(StateData#state.cme, 'M'),
-%	gen_fsm:send_event(StateData#state.cme, 'N'),
-%	gen_fsm:send_event(StateData#state.cme, 'O'),
+%	catch gen_fsm:send_event(StateData#state.cme, 'M'),
+%	catch gen_fsm:send_event(StateData#state.cme, 'N'),
+%	catch gen_fsm:send_event(StateData#state.cme, 'O'),
 %	{next_state, awaiting_establishment, StateData};
 awaiting_establishment(Event, StateData) ->
 	error_logger:info_report(["Unhandled message", {module, ?MODULE},
@@ -494,7 +490,7 @@ awaiting_release({'MDL', 'REMOVE', request, {_TEI, _CES}}, StateData) ->
 	% Discard UI queue
 	NewStateData = StateData#state{tei = undefined, ui_queue = []},
 	% DL RELEASE confirm
-	gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', confirm, undefined}),
+	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', confirm, undefined}),
 	% Stop T200
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_unassigned, NewStateData#state{tei = undefined, t200_ref = undefined}};
@@ -502,7 +498,7 @@ awaiting_release({'PH', 'DEACTIVATION', indication, _PhParms}, StateData) ->
 	% Discard UI queue
 	NewStateData = StateData#state{ui_queue = []},
 	% DL RELEASE confirm
-	gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', confirm, undefined}),
+	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', confirm, undefined}),
 	% Stop T200
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_assigned, NewStateData#state{t200_ref = undefined}};
@@ -514,7 +510,7 @@ awaiting_release({'PH', 'DATA', indication,
 	% F=P
 	DM = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#000:3, P:1, 2#11:2, 2#11:2>>,
 	% TX DM
-	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, DM}),
+	catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, DM}),
 	{next_state, awaiting_release, StateData};
 awaiting_release({'PH', 'DATA', indication,
 		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
@@ -524,7 +520,7 @@ awaiting_release({'PH', 'DATA', indication,
 	% F=P
 	% TX UA
 	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
-	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
+	catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
 	{next_state, awaiting_release, StateData};
 awaiting_release({'PH', 'DATA', indication,
 		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
@@ -532,7 +528,7 @@ awaiting_release({'PH', 'DATA', indication,
 		StateData) ->
 	% F=1? (yes)
 	% DL RELEASE confirm
-	gen_fsm:send_event(StateData#state.usap, {'DL', 'RELEASE', confirm, undefined}),
+	catch gen_fsm:send_event(StateData#state.usap, {'DL', 'RELEASE', confirm, undefined}),
 	% Stop T200
 	cancel_timer(StateData#state.t200_ref),
 	{next_state, tei_assigned, StateData#state{t200_ref = undefined}};
@@ -542,7 +538,7 @@ awaiting_release({'PH', 'DATA', indication,
 		StateData) ->
 	% F=1? (no)
 	% MDL ERROR (D) indication
-	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'D'}),
+	catch gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'D'}),
 	{next_state, awaiting_release, StateData};
 % ref:  ETS 300 125 Figure B-6/Q.921 (2 of 2) 
 awaiting_release({'PH', 'DATA', indication,
@@ -551,7 +547,7 @@ awaiting_release({'PH', 'DATA', indication,
 		StateData) ->
 	% F=1? (yes)
 	% DL RELEASE confirm
-	gen_fsm:send_event(StateData#state.usap, {'DL', 'RELEASE', confirm, undefined}),
+	catch gen_fsm:send_event(StateData#state.usap, {'DL', 'RELEASE', confirm, undefined}),
 	% Stop T200
 	cancel_timer(StateData#state.t200_ref),
 	{next_state, tei_assigned, StateData#state{t200_ref = undefined}};
@@ -565,9 +561,9 @@ awaiting_release(t200_expiry, StateData)
 		when StateData#state.rc == StateData#state.n200 ->
 	% RC=N200? (yes)
 	% MDL ERROR (H) indication
-	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'H'}),
+	catch gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'H'}),
 	% DL RELEASE confirm
-	gen_fsm:send_event(StateData#state.usap, {'DL', 'RELEASE', confirm, undefined}),
+	catch gen_fsm:send_event(StateData#state.usap, {'DL', 'RELEASE', confirm, undefined}),
 	{next_state, tei_assigned, StateData};
 awaiting_release(t200_expiry, StateData) ->
 	% RC=N200? (no)
@@ -580,9 +576,9 @@ awaiting_release(t200_expiry, StateData) ->
 	% P=1
 	DISC = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1, 2#010:3, 1:1, 2#00:2, 2#11:2>>,
 	% TX DISC
-	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, DISC}),
+	catch gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, DISC}),
 	% Start T200
-	T200_ref = gen_fsm:send_event_after(NewStateData#state.t200, t200_expiry),
+	T200_ref = catch gen_fsm:send_event_after(NewStateData#state.t200, t200_expiry),
 	{next_state, awaiting_release, NewStateData#state{t200_ref = T200_ref}};
 %% ref:  ETS 300 125 Figure B-9/Q.921 (1 of 5) 
 awaiting_release({'DL', 'UNIT DATA', request, Data}, StateData) when is_binary(Data) ->
@@ -594,7 +590,7 @@ awaiting_release({'DL', 'UNIT DATA', request, Data}, StateData) when is_binary(D
 	UI = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
 			2#000:3, 0:1, 2#00:2, 2#11:2, Data/binary>>,
 	% TX UI
-	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UI}),
+	catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UI}),
 	{next_state, awaiting_release, StateData};
 awaiting_release({'PH', 'DATA', indication,
 		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
@@ -602,19 +598,19 @@ awaiting_release({'PH', 'DATA', indication,
 		Data/binary>>},                    % Information
 		StateData) ->
 	% DL UNIT DATA indication
-	gen_fsm:send_event(StateData#state.mux, {'DL', 'UNIT DATA', indication, Data}),
+	catch gen_fsm:send_event(StateData#state.mux, {'DL', 'UNIT DATA', indication, Data}),
 	{next_state, awaiting_release, StateData};
 % ref:  ETS 300 125 Figure B-9/Q.921 (3 of 5) 
 % ref:  ETS 300 125 5.8.5 Frame rejection condition
 awaiting_release({'PH', 'DATA', indication, _DlParms}, StateData) -> 
 	% MDL ERROR indication (L)
-	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'L'}),
+	catch gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'L'}),
 	{next_state, awaiting_release, StateData};
 %awaiting_release({'PH', 'DATA', indication, _DlParms}, StateData) -> 
 %	% MDL ERROR indication (M,N,O)
-%	gen_fsm:send_event(StateData#state.cme, 'M'),
-%	gen_fsm:send_event(StateData#state.cme, 'N'),
-%	gen_fsm:send_event(StateData#state.cme, 'O'),
+%	catch gen_fsm:send_event(StateData#state.cme, 'M'),
+%	catch gen_fsm:send_event(StateData#state.cme, 'N'),
+%	catch gen_fsm:send_event(StateData#state.cme, 'O'),
 %	{next_state, awaiting_release, StateData};
 awaiting_release(Event, StateData) ->
 	error_logger:info_report(["Unhandled message", {module, ?MODULE},
@@ -639,12 +635,12 @@ multiple_frame_established({'DL', 'RELEASE', request, _DlParms}, StateData) ->
 	% P=1
 	DISC = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1, 2#010:3, 1:1, 2#00:2, 2#11:2>>,
 	% TX DISC
-	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, DISC}),
+	catch gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, DISC}),
 	% Stop T203
 	% Restart T200
 	cancel_timer(NewStateData#state.t203_ref),
 	cancel_timer(NewStateData#state.t200_ref),
-	T200_ref = gen_fsm:send_event_after(NewStateData#state.t200),
+	T200_ref = catch gen_fsm:send_event_after(NewStateData#state.t200),
 	{next_state, awaiting_release, NewStateData#state{t200_ref = T200_ref, t203_ref = undefined}};
 multiple_frame_established({'DL', 'DATA', request, Data}, StateData) when is_binary(Data),
 		StateData#state.peer_receiver_busy == true  ->
@@ -663,7 +659,7 @@ multiple_frame_established({'DL', 'DATA', request, Data}, StateData) when is_bin
 			% Stop T203
 			% Start T200
 			cancel_timer(NewStateData#state.t203_ref),
-			T200_ref = gen_fsm:send_event_after(NewStateData#state.t200),
+			T200_ref = catch gen_fsm:send_event_after(NewStateData#state.t200),
 			{next_state, multiple_frame_esatblished, 
 					NewStateData#state{t203_ref = undefined, t200 = T200_ref}}
 	end;
@@ -685,7 +681,7 @@ multiple_frame_established({'MDL', 'REMOVE', request, {_TEI, _CES}}, StateData) 
 	% Discard I and UI queues
 	NewStateData = StateData#state{tei = undefined, i_queue = [], ui_queue = []},
 	% DL RELEASE indication
-	gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
 	% Stop T200
 	% Stop T203
 	cancel_timer(NewStateData#state.t200),
@@ -696,7 +692,7 @@ multiple_frame_established({'PH', 'DEACTIVATION', indication, _PhParms}, StateDa
 	% Discard I and UI queues
 	NewStateData = StateData#state{i_queue = [], ui_queue = []},
 	% DL RELEASE indication
-	gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
 	% Stop T200
 	% Stop T203
 	cancel_timer(NewStateData#state.t200),
@@ -712,11 +708,11 @@ multiple_frame_established({'PH', 'DATA', indication,
 	% F=P
 	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	% TX UA
-	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
+	catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
 	% Clear exception consitions
 	NextStateData = clear_exception_conditions(StateData),
 	% MDL ERROR indication (F)
-	gen_fsm:send_event(NextStateData#state.cme, {'MDL', 'ERROR', indication, 'F'}),
+	catch gen_fsm:send_event(NextStateData#state.cme, {'MDL', 'ERROR', indication, 'F'}),
 	% V(S)=V(A)?
 	VA = NextStateData#state.'V(A)',
 	case NextStateData#state.'V(S)' of
@@ -726,7 +722,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 			% Discard I queues
 			NewStateData = NextStateData#state{i_queue = []},
 			% DL ESTABLISH indication
-			gen_fsm:send_event(NewStateData#state.usap,
+			catch gen_fsm:send_event(NewStateData#state.usap,
 					{'DL', 'ESTABLISH', indication, undefined})
 	end,
 	% Stop T200
@@ -747,9 +743,9 @@ multiple_frame_established({'PH', 'DATA', indication,
 	% F=P
 	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	% TX UA
-	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, UA}),
+	catch gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, UA}),
 	% DL RELEASE indication
-	gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
 	% Stop T200
 	% Stop T203
 	cancel_timer(NewStateData#state.t200),
@@ -760,14 +756,14 @@ multiple_frame_established({'PH', 'DATA', indication,
 		2#011:3, 1:1, 2#00:2, 2#11:2>>},   % Command (UA)
 		StateData) ->
 	% MDL ERROR indication (C)
-	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'C'}),
+	catch gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'C'}),
 	{next_state, multiple_frame_established, StateData};
 multiple_frame_established({'PH', 'DATA', indication,
 		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
 		2#011:3, 0:1, 2#00:2, 2#11:2>>},   % Command (UA)
 		StateData) ->
 	% MDL ERROR indication (D)
-	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'D'}),
+	catch gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'D'}),
 	{next_state, multiple_frame_established, StateData};
 % ref:  ETS 300 125 Figure B-7/Q.921 (4 of 10) 
 multiple_frame_established({'PH', 'DATA', indication,
@@ -776,7 +772,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 		StateData) ->
 	% F=1? (yes)
 	% MDL ERROR indication (B)
-	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'B'}),
+	catch gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'B'}),
 	{next_state, multiple_frame_established, StateData};
 multiple_frame_established({'PH', 'DATA', indication,
 		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
@@ -784,7 +780,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 		StateData) ->
 	% F=1? (no)
 	% MDL ERROR indication (E)
-	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'E'}),
+	catch gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'E'}),
 	% Establish data link
 	NewStateData = establish_data_link(StateData),
 	% Clear layer 3 initiated
@@ -803,7 +799,7 @@ multiple_frame_established(set_own_receiver_busy, StateData) ->
 	RNR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
 			2#0000010:7, 1:1, (StateData#state.'V(R)'):7, 0:1>>,
 	% TX RNR response
-	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, RNR}),
+	catch gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, RNR}),
 	{next_state, multiple_frame_established, NewStateData};
 multiple_frame_established(clear_own_receiver_busy, StateData) when StateData#state.own_receiver_busy == true ->
 	% Clear own receiver busy
@@ -817,7 +813,7 @@ multiple_frame_established(clear_own_receiver_busy, StateData) when StateData#st
 	RR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
 			2#0000000:7, 1:1, (StateData#state.'V(R)'):7, 0:1>>,
 	% TX RR response
-	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, RR}),
+	catch gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, RR}),
 	{next_state, multiple_frame_established, NewStateData};
 multiple_frame_established(clear_own_receiver_busy, StateData) ->
 	{next_state, multiple_frame_established, StateData};
@@ -846,7 +842,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 			case PF of
 				1 ->
 					% MDL ERROR indication (A)
-					gen_fsm:send_event(NextStateData#state.cme, {'MDL', 'ERROR', indication, 'A'}),
+					catch gen_fsm:send_event(NextStateData#state.cme, {'MDL', 'ERROR', indication, 'A'}),
 					NextStateData;
 				0 ->
 					NextStateData
@@ -902,7 +898,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 			case PF of
 				1 ->
 					% MDL ERROR indication (A)
-					gen_fsm:send_event(NextStateData#state.cme, {'MDL', 'ERROR', indication, 'A'}),
+					catch gen_fsm:send_event(NextStateData#state.cme, {'MDL', 'ERROR', indication, 'A'}),
 					NextStateData;
 				_ ->
 					NextStateData
@@ -950,7 +946,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 			case PF of
 				1 ->
 					% MDL ERROR indication (A)
-					gen_fsm:send_event(NextStateData#state.cme, {'MDL', 'ERROR', indication, 'A'}),
+					catch gen_fsm:send_event(NextStateData#state.cme, {'MDL', 'ERROR', indication, 'A'}),
 					NextStateData;
 				_ ->
 					NextStateData
@@ -976,7 +972,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 		2#100:3, _F:1, 2#01:2, 2#11:2>>},   % Command (FRMR)
 		StateData) ->
 	% MDL ERROR indication (K)
-	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'K'}),
+	catch gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'K'}),
 	% establish data link
 	NewStateData = establish_data_link(StateData),
 	% clear layer3_initiated
@@ -999,7 +995,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 					% F=1
 					RNR = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#0000010:7, 1:1, (StateData#state.'V(R)'):7, 1:1>>,
 					% TX RNR
-					gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RNR}),
+					catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RNR}),
 					% Clear acknowledge pending
 					StateData#state{acknowledge_pending = false};
 				0 ->
@@ -1013,7 +1009,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 					NewVR = StateData#state.'V(R)' + 1,
 					% Clear reject exception (deferred to below)
 					% DL DATA indication
-					gen_fsm:send_event(StateData#state.usap, {'DL', 'DATA', indication, Data}),
+					catch gen_fsm:send_event(StateData#state.usap, {'DL', 'DATA', indication, Data}),
 					% P=1?
 					case P of
 						1 ->
@@ -1021,7 +1017,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 							% F=P
 							RNR = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#0000010:7, 1:1, NewVR:7, P:1>>,
 							% TX RNR
-							gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RNR}),
+							catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RNR}),
 							% Clear acknowledge pending
 							StateData#state{'V(R)' = NewVR, acknowledge_pending = false,
 									% Clear reject exception (from above)
@@ -1033,7 +1029,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 									StateData;
 								_ ->
 									% ACKNOWLEDGE PENDING
-									gen_fsm:send_event(self(), 'ACKNOWLEDGE PENDING'),
+									catch gen_fsm:send_event(self(), 'ACKNOWLEDGE PENDING'),
 									% Set acknowledge pending
 									StateData#state{'V(R)' = NewVR, acknowledge_pending = true}
 							end
@@ -1050,7 +1046,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 									% F=P
 									RR = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#0000000:7, 1:1, (StateData#state.'V(R)'):7, P:1>>,
 									% TX RR
-									gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RR}),
+									catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RR}),
 									% Clear acknowledge pending
 									StateData#state{acknowledge_pending = false};
 								0 ->
@@ -1061,7 +1057,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 							% F=P
 							REJ = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#0000100:7, 1:1, (StateData#state.'V(R)'):7, P:1>>,
 							% TX REJ
-							gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, REJ}),
+							catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, REJ}),
 							% Set reject exception
 							% Clear acknowledge pending
 							StateData#state{reject_exception = false, acknowledge_pending = false}
@@ -1088,7 +1084,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 							% Restart T203
 							cancel_timer(NextStateData#state.t200_ref),
 							cancel_timer(NextStateData#state.t203_ref),
-							T203_ref = gen_fsm:send_event_after(NextStateData#state.t203, t203_expiry),
+							T203_ref = catch gen_fsm:send_event_after(NextStateData#state.t203, t203_expiry),
 							NewStateData = NextStateData#state{'V(A)' = NR,
 									t200_ref = undefined, t203_ref = T203_ref },
 							{next_state, multiple_frame_established, NewStateData};
@@ -1100,7 +1096,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 								_ ->                     % false
 									% Restart T200
 									cancel_timer(NextStateData#state.t200_ref),
-									T200_ref = gen_fsm:send_event_after(NextStateData#state.t200, t200_expiry),
+									T200_ref = catch gen_fsm:send_event_after(NextStateData#state.t200, t200_expiry),
 									NewStateData = NextStateData#state{'V(A)' = NR, t200_ref = T200_ref},
 									{next_state, multiple_frame_established, NewStateData}
 							end
@@ -1122,7 +1118,7 @@ multiple_frame_established('ACKNOWLEDGE PENDING', StateData)
 	RR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
 			2#0000000:7, 1:1, (StateData#state.'V(R)'):7, 0:1>>,
 	% TX RR
-	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RR}),
+	catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RR}),
 	% Clear acknowledge pending
 	NewStateData = StateData#state{acknowledge_pending = false},
 	{next_state, awaiting_establishment, NewStateData};
@@ -1139,7 +1135,7 @@ multiple_frame_established({'DL', 'UNIT DATA', request, Data}, StateData) when i
 	UI = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
 			2#000:3, 0:1, 2#00:2, 2#11:2, Data/binary>>,
 	% TX UI
-	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UI}),
+	catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UI}),
 	{next_state, multiple_frame_established, StateData};
 multiple_frame_established({'PH', 'DATA', indication,
 		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
@@ -1147,19 +1143,19 @@ multiple_frame_established({'PH', 'DATA', indication,
 		Data/binary>>},                    % Information
 		StateData) ->
 	% DL UNIT DATA indication
-	gen_fsm:send_event(StateData#state.mux, {'DL', 'UNIT DATA', indication, Data}),
+	catch gen_fsm:send_event(StateData#state.mux, {'DL', 'UNIT DATA', indication, Data}),
 	{next_state, multiple_frame_established, StateData};
 % ref:  ETS 300 125 Figure B-9/Q.921 (2 of 5) 
 % ref:  ETS 300 125 5.8.5 Frame rejection condition
 multiple_frame_established({'PH', 'DATA', indication, _DlParms}, StateData) -> 
 	% MDL ERROR indication (L)
-	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'L'}),
+	catch gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'L'}),
 	{next_state, multiple_frame_established, StateData};
 %multiple_frame_established({'PH', 'DATA', indication, _DlParms}, StateData) -> 
 %	% MDL ERROR indication (M,N,O)
-%	gen_fsm:send_event(StateData#state.cme, 'M'),
-%	gen_fsm:send_event(StateData#state.cme, 'N'),
-%	gen_fsm:send_event(StateData#state.cme, 'O'),
+%	catch gen_fsm:send_event(StateData#state.cme, 'M'),
+%	catch gen_fsm:send_event(StateData#state.cme, 'N'),
+%	catch gen_fsm:send_event(StateData#state.cme, 'O'),
 %	{next_state, multiple_frame_established, StateData};
 multiple_frame_established(Event, StateData) ->
 	error_logger:info_report(["Unhandled message", {module, ?MODULE},
@@ -1185,7 +1181,7 @@ timer_recovery({'DL', 'RELEASE', request, _DlParms}, StateData) ->
 	% P=1
 	DISC = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1, 2#010:3, 1:1, 2#00:2, 2#11:2>>,
 	% TX DISC
-	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, DISC}),
+	catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, DISC}),
 	{next_state, awaiting_release, NewStateData};
 timer_recovery({'DL', 'DATA', request, Data}, StateData) when is_binary(Data) ->
 	% Put in I queue
@@ -1196,7 +1192,7 @@ timer_recovery(t200_expiry, StateData)
 		when StateData#state.rc == StateData#state.n200 ->
 	% RC=N200? (yes)
 	% MDL ERROR indication
-	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'I'}),
+	catch gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'I'}),
 	% Establish data link
 	NewStateData = establish_data_link(StateData),
 	% Clear layer 3 initiated
@@ -1225,7 +1221,7 @@ timer_recovery({'MDL', 'REMOVE', request, {_TEI, _CES}}, StateData) ->
 	% Discard I and UI queues
 	NewStateData = StateData#state{tei = undefined, i_queue = [], ui_queue = []},
 	% DL RELEASE indication
-	gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
 	% Stop T200
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_unassigned, NewStateData#state{t200_ref = undefined}};
@@ -1233,7 +1229,7 @@ timer_recovery({'PH', 'DEACTIVATE', indication, _PhParms}, StateData) ->
 	% Discard I and UI queues
 	NewStateData = StateData#state{i_queue = [], ui_queue = []},
 	% DL RELEASE indication
-	gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
 	% Stop T200
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_assigned, NewStateData#state{t200_ref = undefined}};
@@ -1246,11 +1242,11 @@ timer_recovery({'PH', 'DATA', indication,
 	% F=P
 	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	% TX UA
-	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
+	catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UA}),
 	% Clear exception conditions
 	NextStateData = clear_exception_conditions(StateData),
 	% MDL ERROR indication (F)
-	gen_fsm:send_event(NextStateData#state.cme, {'MDL', 'ERROR', indication, 'F'}),
+	catch gen_fsm:send_event(NextStateData#state.cme, {'MDL', 'ERROR', indication, 'F'}),
 	% V(S)=V(A)?
 	VA = NextStateData#state.'V(A)',
 	NewStateData = case NextStateData#state.'V(S)' of
@@ -1258,14 +1254,14 @@ timer_recovery({'PH', 'DATA', indication,
 			NextStateData;
 		_ ->                                         % false
 			% DL ESTABLISH indication
-			gen_fsm:send_event(NextStateData#state.usap, {'DL', 'ESTABLISH', indication, undefined}),
+			catch gen_fsm:send_event(NextStateData#state.usap, {'DL', 'ESTABLISH', indication, undefined}),
 			% Discard I queue
 			NextStateData#state{i_queue = []}
 	end,
 	% Stop T200
 	% Start T203
 	cancel_timer(NewStateData#state.t200_ref),
-	T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expiry),
+	T203_ref = catch gen_fsm:send_event_after(NewStateData#state.t203, t203_expiry),
 	% V(S)=0, V(A)=0, V(R)=0
 	{next_state, multiple_frame_estabslihed, NewStateData#state{t200_ref = undefined,
 			t203_ref = T203_ref, 'V(S)' = 0, 'V(A)' = 0, 'V(R)' = 0}};
@@ -1279,9 +1275,9 @@ timer_recovery({'PH', 'DATA', indication,
 	% F=P
 	UA = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#011:3, P:1, 2#00:2, 2#11:2>>,
 	% TX UA
-	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, UA}),
+	catch gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, UA}),
 	% DL RELEASE indication
-	gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
+	catch gen_fsm:send_event(NewStateData#state.usap, {'DL', 'RELEASE', indication, undefined}),
 	% Stop T200
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_assigned, NewStateData#state{t200_ref = undefined}};
@@ -1291,7 +1287,7 @@ timer_recovery({'PH', 'DATA', indication,
 		StateData) ->
 	% F=1? (yes)
 	% MDL ERROR indication (C)
-	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'C'}),
+	catch gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'C'}),
 	{next_state, timer_recovery, StateData};
 timer_recovery({'PH', 'DATA', indication,
 		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
@@ -1299,7 +1295,7 @@ timer_recovery({'PH', 'DATA', indication,
 		StateData) ->
 	% F=1? (no)
 	% MDL ERROR indication (D)
-	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'D'}),
+	catch gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'D'}),
 	{next_state, timer_recovery, StateData};
 % ref:  ETS 300 125 Figure B-8/Q.921 (4 of 9) 
 timer_recovery({'PH', 'DATA', indication,
@@ -1307,7 +1303,7 @@ timer_recovery({'PH', 'DATA', indication,
 		2#000:3, 1:1, 2#11:2, 2#11:2>>},   % Command (DM)
 		StateData) ->
 	% F=1? (yes)
-	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'B'}),
+	catch gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'B'}),
 	% Establish data link
 	NewStateData = establish_data_link(StateData),
 	% Clear layer 3 initiated
@@ -1318,7 +1314,7 @@ timer_recovery({'PH', 'DATA', indication,
 		StateData) ->
 	% F=1? (no)
 	% MDL ERROR indication (E)
-	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'E'}),
+	catch gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'E'}),
 	% Establish data link
 	NewStateData = establish_data_link(StateData),
 	% Clear layer 3 initiated
@@ -1335,7 +1331,7 @@ timer_recovery('SET OWN RECEIVER BUSY', StateData) ->
 	RNR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
 			2#0000010:7, 1:1, (StateData#state.'V(R)'):7, 0:1>>,
 	% TX RNR response
-	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RNR}),
+	catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RNR}),
 	% Set own receiver busy
 	% Clear acknowledge pending
 	NewStateData = StateData#state{own_receiver_busy = true, acknowledge_pending = false},
@@ -1352,7 +1348,7 @@ timer_recovery('CLEAR OWN RECEIVER BUSY', StateData)  ->
 	RR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
 			2#0000000:7, 1:1, (StateData#state.'V(R)'):7, 0:1>>,
 	% TX RR response
-	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RR}),
+	catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RR}),
 	% Clear own receiver busy
 	% Clear acknowledge pending
 	NewStateData = StateData#state{own_receiver_busy = false, acknowledge_pending = false},
@@ -1406,7 +1402,7 @@ timer_recovery({'PH', 'DATA', indication,
 					% Stop T200
 					% Start T203
 					cancel_timer(NextStateData2#state.t200_ref),
-					T203_ref = gen_fsm:send_event_after(NextStateData2#state.t203, t203_expiry),
+					T203_ref = catch gen_fsm:send_event_after(NextStateData2#state.t203, t203_expiry),
 					NewStateData = NextStateData2#state{t200_ref = undefined, t203_ref = T203_ref},
 					% Invoke retransmission
 					{next_state, multi_frame_establish, transmit_iqueue(NewStateData#state{'V(S)' = NR})};
@@ -1461,7 +1457,7 @@ timer_recovery({'PH', 'DATA', indication,
 				1 ->
 					% Restart T200
 					cancel_timer(NextStateData2#state.t200_ref),
-					T200_ref = gen_fsm:send_event_after(NextStateData2#state.t200, t200_expiry),
+					T200_ref = catch gen_fsm:send_event_after(NextStateData2#state.t200, t200_expiry),
 					NewStateData = NextStateData2#state{t200_ref = T200_ref},
 					% Invoke retransmission
 					{next_state, multi_frame_establish, transmit_iqueue(NewStateData#state{'V(S)' = NR})};
@@ -1477,7 +1473,7 @@ timer_recovery({'PH', 'DATA', indication,
 		2#100:3, _F:1, 2#01:2, 2#11:2>>},     % Command (FRMR)
 		StateData) ->
 	% MDL ERROR indication (K)
-	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'K'}),
+	catch gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'K'}),
 	% Establish data link
 	NewStateData = establish_data_link(StateData),
 	% Clear layer 3 initiated
@@ -1495,7 +1491,7 @@ timer_recovery({'PH', 'DATA', indication,
 			% F=1
 			RNR = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#0000010:7, 1:1, (StateData#state.'V(R)'):7, 1:1>>,
 			% TX RNR
-			gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RNR}),
+			catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RNR}),
 			% Clear acknowledge pending		
 			StateData#state{acknowledge_pending = false};
 		_ ->
@@ -1523,14 +1519,14 @@ timer_recovery({'PH', 'DATA', indication,
 	NextStateData = StateData#state{'V(R)' = (StateData#state.'V(R)' + 1) rem 128,
 			reject_exception = false},
 	% DL DATA indication
-	gen_fsm:send_event(NextStateData#state.usap, {'DL', 'DATA', indication, Data}),
+	catch gen_fsm:send_event(NextStateData#state.usap, {'DL', 'DATA', indication, Data}),
 	% P=1?
 	NewStateData = case P of
 		1 ->
 			% F=P
 			RR = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#0000000:7, 1:1, (StateData#state.'V(R)'):7, P:1>>,
 			% TX RR
-			gen_fsm:send_event(NextStateData#state.mux, {'PH', 'DATA', request, RR}),
+			catch gen_fsm:send_event(NextStateData#state.mux, {'PH', 'DATA', request, RR}),
 			% Clear acknowledge pending
 			NextStateData#state{acknowledge_pending = false};
 		0 ->
@@ -1540,7 +1536,7 @@ timer_recovery({'PH', 'DATA', indication,
 					NextStateData;
 				_ ->
 					% Acknowledge pending
-					gen_fsm:send_event(self(), 'ACKNOWLEDGE PENDING'),
+					catch gen_fsm:send_event(self(), 'ACKNOWLEDGE PENDING'),
 					NextStateData#state{acknowledge_pending = true}
 			end
 	end,
@@ -1569,7 +1565,7 @@ timer_recovery({'PH', 'DATA', indication,
 			% F=P
 			RR = <<SAPI:6, CR:1, 0:1, TEI:7, 1:1, 2#0000000:7, 1:1, (StateData#state.'V(R)'):7, P:1>>,
 			% TX RR
-			gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RR}),
+			catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RR}),
 			% Clear acknowledge pending
 			StateData#state{acknowledge_pending = false};
 		0 ->
@@ -1597,7 +1593,7 @@ timer_recovery({'PH', 'DATA', indication,
 	% F=P
 	REJ = <<SAPI:6, OutCR:1, 0:1, TEI:7, 1:1, 2#0000100:7, 1:1, (StateData#state.'V(R)'):7, P:1>>,
 	% TX REJ
-	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, REJ}),
+	catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, REJ}),
 	% Clear acknowledge pending
 	StateData#state{acknowledge_pending = false},
 	% ref:  ETS 300 125 Figure B-8/Q.921 (8 of 9) connector (4)
@@ -1624,7 +1620,7 @@ timer_recovery('ACKNOWLEDGE PENDING', StateData)
 			2#0000000:7, 1:1, (StateData#state.'V(R)'):7, 0:1>>,
 	NewStateData = StateData#state{acknowledge_pending = false},
 	% TX RR
-	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, RR}),
+	catch gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, RR}),
 	{next_state, timer_recovery, NewStateData};
 timer_recovery('ACKNOWLEDGE PENDING', StateData) ->
 	% Acknowledge pending? (no)
@@ -1639,7 +1635,7 @@ timer_recovery({'DL', 'UNIT DATA', request, Data}, StateData) when is_binary(Dat
 	UI = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
 			2#000:3, 0:1, 2#00:2, 2#11:2, Data/binary>>,
 	% TX UI
-	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UI}),
+	catch gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UI}),
 	{next_state, timer_recovery, StateData};
 timer_recovery({'PH', 'DATA', indication,
 		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
@@ -1647,25 +1643,28 @@ timer_recovery({'PH', 'DATA', indication,
 		Data/binary>>},                    % Information
 		StateData) ->
 	% DL UNIT DATA indication
-	gen_fsm:send_event(StateData#state.mux, {'DL', 'UNIT DATA', indication, Data}),
+	catch gen_fsm:send_event(StateData#state.mux, {'DL', 'UNIT DATA', indication, Data}),
 	{next_state, timer_recovery, StateData};
 % ref:  ETS 300 125 Figure B-9/Q.921 (2 of 5) 
 % ref:  ETS 300 125 5.8.5 Frame rejection condition
 timer_recovery({'PH', 'DATA', indication, _DlParms}, StateData) -> 
 	% MDL ERROR indication (L)
-	gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'L'}),
+	catch gen_fsm:send_event(StateData#state.cme, {'MDL', 'ERROR', indication, 'L'}),
 	{next_state, timer_recovery, StateData};
 %timer_recovery({'PH', 'DATA', indication, _DlParms}, StateData) -> 
 %	% MDL ERROR indication (M,N,O)
-%	gen_fsm:send_event(StateData#state.cme, 'M'),
-%	gen_fsm:send_event(StateData#state.cme, 'N'),
-%	gen_fsm:send_event(StateData#state.cme, 'O'),
+%	catch gen_fsm:send_event(StateData#state.cme, 'M'),
+%	catch gen_fsm:send_event(StateData#state.cme, 'N'),
+%	catch gen_fsm:send_event(StateData#state.cme, 'O'),
 %	{next_state, timer_recovery, StateData};
 timer_recovery(Event, StateData) ->
 	error_logger:info_report(["Unhandled message", {module, ?MODULE},
 			{state, timer_recovery}, Event]),
 	{next_state, timer_recovery, StateData}.
 
+%% implementation specific state and primitive for associating a LAPD-User pid()
+handle_event({'MDL', 'BIND', request, {CME, _DLE, USAP}}, StateName, StateData) ->
+	{next_state, StateName, StateData#state{usap = USAP, cme = CME}};
 handle_event(_Event, StateName, StateData) ->
 	{next_state, StateName, StateData}.
 	
@@ -1675,7 +1674,8 @@ handle_sync_event(_Event, _From, StateName, StateData) ->
 handle_info(_Info, StateName, StateData) ->
 	{next_state, StateName, StateData}.
 
-terminate(_Reason, _StateName, _StateData) -> ok.
+terminate(_Reason, _StateName, StateData) ->
+	catch gen_fsm:send_all_state_event(StateData#state.mux, {close, {p2p, StateData#state.sapi, self()}}).
 
 code_change(_OldVsn, StateName, StateData, _Extra) ->
 	{ok, StateName, StateData}.
@@ -1687,7 +1687,7 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %% ref: ETS 300 125 Figure B-9/Q.921 (4 of 5)
 nr_error_recovery(StateData) ->
 	% MDL ERROR indication
-	gen_fsm:send_event(StateData#state.cme, 'J'),
+	catch gen_fsm:send_event(StateData#state.cme, 'J'),
 	% Clear layer 3 initiated
 	establish_data_link(StateData#state{layer3_initiated = false}).
 
@@ -1702,13 +1702,13 @@ establish_data_link(StateData) ->
 	% P=1
 	SABME = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1, 2#011:3, 1:1, 2#11:2, 2#11:2>>,
 	% TX SABME
-	gen_fsm:send_event(NewStateData#state.mux, SABME),
+	catch gen_fsm:send_event(NewStateData#state.mux, SABME),
 	% RC=0
 	% Restart T200
 	% Stop T203
 	cancel_timer(NewStateData#state.t200_ref),
 	cancel_timer(NewStateData#state.t203_ref),
-	T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expiry),
+	T203_ref = catch gen_fsm:send_event_after(NewStateData#state.t203, t203_expiry),
 	NewStateData#state{rc = 0, t200_ref = undefined, t203_ref = T203_ref}.
 
 %% ref: ETS 300 125 Figure B-9/Q.921 (4 of 5)
@@ -1735,17 +1735,17 @@ transmit_enquiry(StateData) ->
 			RNR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7,
 					1:1, 2#0000010:7, 1:1, (StateData#state.'V(R)'):7, 1:1>>,
 			% TX RNR Command
-			gen_fsm:send_event(StateData#state.mux, RNR);
+			catch gen_fsm:send_event(StateData#state.mux, RNR);
 		_ ->
 			% P=1
 			RR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7,
 					1:1, 2#0000000:7, 1:1, (StateData#state.'V(R)'):7, 1:1>>,
 			% TX RR Command
-			gen_fsm:send_event(StateData#state.mux, RR)
+			catch gen_fsm:send_event(StateData#state.mux, RR)
 	end,
 	% Clear acknowledge pending
 	% Start T200
-	T200_ref = gen_fsm:send_event_after(StateData#state.t200, t200_expiry),
+	T200_ref = catch gen_fsm:send_event_after(StateData#state.t200, t200_expiry),
 	StateData#state{acknowledge_pending = false, t200_ref = T200_ref}.
 
 %% ref: ETS 300 125 Figure B-9/Q.921 (5 of 5)
@@ -1761,13 +1761,13 @@ enquiry_response(StateData) ->
 			RNR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7,
 					1:1, 2#0000010:7, 1:1, (StateData#state.'V(R)'):7, 1:1>>,
 			% TX RNR Response
-			gen_fsm:send_event(StateData#state.mux, RNR);
+			catch gen_fsm:send_event(StateData#state.mux, RNR);
 		_ ->
 			% F=1
 			RR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7,
 					1:1, 2#0000000:7, 1:1, (StateData#state.'V(R)'):7, 1:1>>,
 			% TX RR Response
-			gen_fsm:send_event(StateData#state.mux, RR)
+			catch gen_fsm:send_event(StateData#state.mux, RR)
 	end,
 	% Clear acknowledge pending
 	StateData#state{acknowledge_pending = false}.
@@ -1801,7 +1801,7 @@ send_iframes(StateData, [Data|T]) ->
 	I = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
 			(StateData#state.'V(S)'):7, 0:1, (StateData#state.'V(R)'):7, 0:1, Data/binary>>,
 	% TX I
-	gen_fsm:send_event(StateData#state.mux, I),
+	catch gen_fsm:send_event(StateData#state.mux, I),
 	send_iframes(StateData, T).
 
 transmit_uiqueue(StateData) ->
@@ -1817,7 +1817,7 @@ send_uiframes(StateData, [Data|T]) ->
 	UI = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
 			2#000:3, 0:1, 2#00:2, 2#11:2, Data/binary>>,
 	% TX UI
-	gen_fsm:send_event(StateData#state.mux, UI),
+	catch gen_fsm:send_event(StateData#state.mux, UI),
 	send_uiframes(StateData, T).
 
 modulo_subtract(X, Y) when X < Y -> ((X + 128) - Y) rem 128;

@@ -76,14 +76,14 @@ handle_call({'SMAP', 'BIND', request, {DLE, USAP}}, _From, State) ->
 		% point-to-point DLE
 		SapRec when is_record(SapRec, sap) ->
 			CME = SapRec#sap.cme,
-			gen_fsm:send_event(DLE, {'MDL', 'BIND', request, {CME, DLE, USAP}}),
-			gen_fsm:send_event(CME, {'MDL', 'BIND', request, {CME, DLE, USAP}}),
+			gen_fsm:send_all_state_event(DLE, {'MDL', 'BIND', request, {CME, DLE, USAP}}),
+			gen_fsm:send_all_state_event(CME, {'MDL', 'BIND', request, {CME, DLE, USAP}}),
 			NewSaps = sap_update(SapRec#sap{usap = USAP}, State#state.saps),
 			NewState = State#state{saps = NewSaps},
 			{reply, ok, NewState};
 		_ ->
 			% broadcast DLE
-			gen_fsm:send_event(DLE, {'MDL', 'BIND', request, {undefined, DLE, USAP}}),
+			gen_fsm:send_all_state_event(DLE, {'MDL', 'BIND', request, {undefined, DLE, USAP}}),
 			{reply, ok, State}
 	end;
 handle_call(Request, _From, State) ->
