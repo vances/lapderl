@@ -42,7 +42,17 @@
 %%       {ok, NA} = netaccess:start_link("/dev/pri0", 0),
 %%       {ok, LapdSup} = lapd:start_link(lapd_mux_netaccess_fsm, [NA, 0], []).
 %%
-init([NA, LapdId]) ->
+init([NAServerRef, LapdId]) ->
+	NA = case NAServerRef of
+		Pid when is_pid(Pid) ->
+			Pid;
+		{local, Name} ->
+			whereis(Name);
+		{global, Name} ->
+			global:whereis_name(Name);
+		Name ->
+			
+	end,
 	{ok, deactivated, #state{na = NA, lapdid = LapdId}}.
                 
 %% enable layer 1
