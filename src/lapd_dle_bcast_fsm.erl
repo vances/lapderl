@@ -52,14 +52,14 @@ information_transfer({_, 'UNIT DATA', request, PDU}, StateData) when is_binary(D
 		_ -> CR = 0
 	end,
 	% P=0
-	UI = <<(StateData#state.sapi):6, CR:1, 0:1, 127:7, 1:1,
-			2#000:3, 0:1, 2#00:2, 2#11:2, Data/binary>>,
+	UI = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, 127:7,
+			2#11:2, 2#00:2, 0:1, 2#000:3, Data/binary>>,
 	% TX UI
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UI}),
 	{next_state, information_transfer, StateData};
 information_transfer({'PH', 'DATA', indication, 
-		<<_SAPI:6, _CR:1, 0:1, _TEI:7, 1:1,   % Address
-		2#000:3, _P:1, 2#00:2, 2#11:2,     % Command (UI)
+		<<0:1, _CR:1, _SAPI:6, 1:1, _TEI:7,  % Address
+      2#11:2, 2#00:2, _P:1, 2#000:3,       % Command (UI)
 		Data/binary>>},                    % Information
 		StateData) ->
 	% DL UNIT DATA indication
