@@ -33,16 +33,16 @@
 
 init(Options) ->
 	process_flag(trap_exit, true),
-	{ok, #state{options = Options}}.
+	{ok, #state{options = lists:keysort(1, Options)}}.
 
 %% handle a lapd:open/4 call for a broadcast DLE
 handle_call({'SMAP', 'OPEN', request, {SapSup, SAPI, 127, Options}}, {Pid, _Tag}, State) ->
-	EndPointOptions = lists:keymerge(1, Options, State#state.options),
+	EndPointOptions = merge(Options, State#state.options),
 	case supervisor:start_child(SapSup, [[State#state.mux, SAPI, EndPointOptions]]) of
 		{ok, CeSup} ->
 			Children = supervisor:which_children(CeSup),
 			{value, {dle, DLE, _, _}} = lists:keysearch(dle, 1, Children),
-			gen_fsm:send_event(State#state.mux, {open, {SAPI, 127, DLE}}),
+			gen_fsm:send_all_state_event(State#state.mux, {open, {SAPI, 127, DLE}}),
 			NewState = State#state{sapsup = SapSup},
 			{reply, {self(), undefined, DLE}, NewState};
 		{error, Reason} ->
@@ -51,7 +51,7 @@ handle_call({'SMAP', 'OPEN', request, {SapSup, SAPI, 127, Options}}, {Pid, _Tag}
 	end;
 %% handle a lapd:open/4 call for a point-to-point DLE
 handle_call({'SMAP', 'OPEN', request, {SapSup, SAPI, TEI, Options}}, {Pid, _Tag}, State) ->
-	EndPointOptions = lists:keymerge(1, Options, State#state.options),
+	EndPointOptions = merge(Options, State#state.options),
 	case supervisor:start_child(SapSup, [[State#state.mux, SAPI, self(), EndPointOptions]]) of
 		{ok, CeSup} ->
 			Children = supervisor:which_children(CeSup),
@@ -96,7 +96,7 @@ handle_call({activate, SapSup, MUX}, {Pid, _Tag}, State) ->
 		{ok, CeSup} ->
 			Children = supervisor:which_children(CeSup),
 			{value, {dle, BDLE, _, _}} = lists:keysearch(dle, 1, Children),
-			gen_fsm:send_event(MUX, {open, {63, 127, BDLE}}),
+			gen_fsm:send_all_state_event(MUX, {open, {63, 127, BDLE}}),
 			gen_fsm:send_event(MUX, {'PH', 'ACTIVATE', request, undefined}),
 			NewState = State#state{sapsup = SapSup, mux = MUX, bdle = BDLE},
 			{reply, ok, NewState};
@@ -113,7 +113,7 @@ handle_cast(Request, State) ->
 	error_logger:info_report([{module, ?MODULE}, {line, ?LINE}, {message, Request}]),
 	{noreply, State}.
 	
-handle_info({'EXIT', Pid, _Reason}, State) ->
+handle_info({'EXIT', Pid, Reason}, State) ->
 	SapRec = sap_search({dle, Pid}, State#state.saps),
 	NewState = State#state{saps = sap_delete(SapRec, State#state.saps)},
 	{noreply, NewState};
@@ -138,7 +138,7 @@ sap_search(Key, [_ | T]) ->
 sap_update(SapRec, SapRecList) ->
 	sap_update(SapRec, SapRecList, []).
 sap_update(SapRec, [H | T], Acc) when H#sap.dle == SapRec#sap.dle ->
-	[Acc] ++ [SapRec] ++ T;
+	Acc ++ [SapRec] ++ T;
 sap_update(SapRec, [H | T], Acc) ->
 	sap_update(SapRec, T, Acc ++ [H]).
 
@@ -152,3 +152,7 @@ sap_delete(SapRec, [H | T], Acc) when H#sap.dle == SapRec#sap.dle ->
 sap_delete(SapRec, [H | T], Acc) ->
 	sap_delete(SapRec, T, Acc ++ [H]).
 
+merge([{Key,Value}|T], Options) ->
+	merge(T, lists:keyreplace(Key, 1, Options, {Key, Value}));
+merge([], Options) ->
+	Options.

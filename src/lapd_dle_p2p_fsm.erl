@@ -318,7 +318,7 @@ awaiting_establishment({'MDL', 'REMOVE', request, {_TEI, _CES}}, StateData) ->
 	% Stop T200
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_unassigned, NewStateData#state{t200_ref = undefined}};
-awaiting_establishment({'PH', 'DEACTIVATION', indication, _PhParms}, StateData) ->
+awaiting_establishment({'PH', 'DEACTIVATE', indication, _PhParms}, StateData) ->
 	% Disacrd I & UI queues
 	NewStateData = StateData#state{i_queue = [], ui_queue = []},
 	% DL RELEASE indication
@@ -504,7 +504,7 @@ awaiting_release({'MDL', 'REMOVE', request, {_TEI, _CES}}, StateData) ->
 	% Stop T200
 	cancel_timer(NewStateData#state.t200_ref),
 	{next_state, tei_unassigned, NewStateData#state{tei = undefined, t200_ref = undefined}};
-awaiting_release({'PH', 'DEACTIVATION', indication, _PhParms}, StateData) ->
+awaiting_release({'PH', 'DEACTIVATE', indication, _PhParms}, StateData) ->
 	% Discard UI queue
 	NewStateData = StateData#state{ui_queue = []},
 	% DL RELEASE confirm
@@ -701,7 +701,7 @@ multiple_frame_established({'MDL', 'REMOVE', request, {_TEI, _CES}}, StateData) 
 	cancel_timer(NewStateData#state.t200_ref),
 	cancel_timer(NewStateData#state.t203_ref),
 	{next_state, tei_unassigned, NewStateData#state{t200_ref = undefined, t203_ref = undefined}};
-multiple_frame_established({'PH', 'DEACTIVATION', indication, _PhParms}, StateData) ->
+multiple_frame_established({'PH', 'DEACTIVATE', indication, _PhParms}, StateData) ->
 	% Discard I and UI queues
 	NewStateData = StateData#state{i_queue = [], ui_queue = []},
 	% DL RELEASE indication
