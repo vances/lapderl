@@ -44,14 +44,10 @@
 %%
 init([NAServerRef, LapdId]) ->
 	NA = case NAServerRef of
-		Pid when is_pid(Pid) ->
-			Pid;
-		{local, Name} ->
-			whereis(Name);
-		{global, Name} ->
-			global:whereis_name(Name);
-		Name ->
-			
+		Pid when is_pid(Pid) -> Pid;
+		{local, Name} -> whereis(Name);
+		{global, Name} -> global:whereis_name(Name);
+		Name -> Name
 	end,
 	{ok, deactivated, #state{na = NA, lapdid = LapdId}}.
                 
