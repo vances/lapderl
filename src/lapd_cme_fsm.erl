@@ -77,20 +77,32 @@ active({'MDL', 'ASSIGN', request, {TEI, CES}}, StateData)
 	gen_fsm:send_event(StateData#state.dle, {'MDL', 'ASSIGN', request, {TEI, CES}}),
 	{next_state, active, StateData#state{tei = TEI}};
 active(Event, StateData) ->
-	error_logger:error_report([{module, ?MODULE}, {line, ?LINE}, {message, Event}]),
+	error_logger:error_report([{module, ?MODULE}, {line, ?LINE}, 
+			{message, Event}, {cme, self()},
+			{lme, StateData#state.lme}, {dle, StateData#state.dle},
+			{sapi, StateData#state.sapi}, {tei, StateData#state.tei}]),
 	{next_state, active, StateData}.
 
 
 handle_event(Event, StateName, StateData) ->
-	error_logger:error_report([{module, ?MODULE}, {line, ?LINE}, {message, Event}]),
+	error_logger:error_report([{module, ?MODULE}, {line, ?LINE},
+			{message, Event}, {cme, self()},
+			{lme, StateData#state.lme}, {dle, StateData#state.dle},
+			{sapi, StateData#state.sapi}, {tei, StateData#state.tei}]),
 	{next_state, StateName, StateData}.
 	
 handle_sync_event(Event, _From, StateName, StateData) ->
-	error_logger:error_report([{module, ?MODULE}, {line, ?LINE}, {message, Event}]),
+	error_logger:error_report([{module, ?MODULE}, {line, ?LINE},
+			{message, Event}, {cme, self()},
+			{lme, StateData#state.lme}, {dle, StateData#state.dle},
+			{sapi, StateData#state.sapi}, {tei, StateData#state.tei}]),
 	{next_state, StateName, StateData}.
 	
 handle_info(Info, StateName, StateData) ->
-	error_logger:error_report([{module, ?MODULE}, {line, ?LINE}, {message, Info}]),
+	error_logger:error_report([{module, ?MODULE}, {line, ?LINE},
+			{message, Info}, {cme, self()},
+			{lme, StateData#state.lme}, {dle, StateData#state.dle},
+			{sapi, StateData#state.sapi}, {tei, StateData#state.tei}]),
 	{next_state, StateName, StateData}.
 
 terminate(_Reason, _StateName, _StateData) -> ok.
@@ -121,6 +133,7 @@ log(Error, StateData) ->
 		'O' ->	"N201 error";
 		Other ->	Other
 	end,
-	error_logger:error_report([{'MDL-ERROR', ErrorString},
+	error_logger:error_report([{'MDL-ERROR', ErrorString}, {cme, self()},
+			{lme, StateData#state.lme}, {dle, StateData#state.dle},
 			{sapi, StateData#state.sapi}, {tei, StateData#state.tei}]).
 

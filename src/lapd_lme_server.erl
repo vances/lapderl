@@ -106,11 +106,12 @@ handle_call({activate, SapSup, MUX}, {Pid, _Tag}, State) ->
 	end;
 handle_call(Request, _From, State) ->
 	error_logger:info_report([{module, ?MODULE}, {line, ?LINE},
-			{message, Request}, {from, from}]),
+			{lme, self()}, {message, Request}, {from, from}]),
 	{noreply, State}.
 
 handle_cast(Request, State) ->
-	error_logger:info_report([{module, ?MODULE}, {line, ?LINE}, {message, Request}]),
+	error_logger:info_report([{module, ?MODULE}, {line, ?LINE},
+			{lme, self()}, {message, Request}]),
 	{noreply, State}.
 	
 handle_info({'EXIT', Pid, _Reason}, State) ->
@@ -118,7 +119,8 @@ handle_info({'EXIT', Pid, _Reason}, State) ->
 	NewState = State#state{saps = sap_delete(SapRec, State#state.saps)},
 	{noreply, NewState};
 handle_info(Info, State) ->
-	error_logger:info_report([{module, ?MODULE}, {line, ?LINE}, {message, Info}]),
+	error_logger:info_report([{module, ?MODULE}, {line, ?LINE},
+			{lme, self()}, {message, Info}]),
 	{noreply, State}.
 
 terminate(_Reason, _State) -> ok.

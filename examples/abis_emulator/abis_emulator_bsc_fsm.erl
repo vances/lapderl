@@ -18,8 +18,8 @@
 -behaviour(gen_fsm).
 
 -export([init/1, terminate/3]).
--export([init_lapd/2, link_connection_released/2, awaiting_establish/2,
-		link_connection_established/2, awaiting_release/2]).
+-export([init_lapd/2, link_connection_released/2, 
+		link_connection_established/2]).
 -export([handle_event/3, handle_info/3, handle_sync_event/4, code_change/4]).
 
 -record(state, {sup, tei, sap, events, next}).
@@ -34,91 +34,35 @@ init_lapd(timeout, StateData) ->
 	{ok, Events} = file:consult(File),
 	{LME, _CME, DLE} = lapd:open(LAPD, 0, StateData#state.tei, [{role, network}]),
 	lapd:bind(LME, DLE, self()),
-	{next_state, link_connection_released, #state{sap = DLE, events = Events}}.
+	NewStateData = StateData#state{sap = DLE, events = Events},
+	{next_state, link_connection_released, NewStateData}.
 
 link_connection_released({'DL', 'ESTABLISH', indication, _}, StateData) ->
-	NewStateData = StateData#state{next = 1},
-	case next_event(NewStateData) of
-		{bsc, Timeout, _Type, _PDU} ->
-			{next_state, link_connection_established, NewStateData, Timeout};
-		{bts, _, _, _} ->
-			{next_state, link_connection_established, NewStateData}
-	end;
-link_connection_released({'DL', 'ESTABLISH', confirm, _}, StateData) ->
-	{next_state, link_connection_established, StateData};
+	next_step(StateData#state{next = 1});
 link_connection_released({'DL', 'UNIT DATA', indication, _}, StateData) ->
 	{next_state, link_connection_released, StateData};
-link_connection_released({'DL', 'RELEASE', indication, _}, StateData) ->
+link_connection_released({timeout, _PDU}, StateData) ->
 	{next_state, link_connection_released, StateData};
 link_connection_released(Event, StateData) ->
 	error_logger:error_report([{module, ?MODULE}, {event, Event},
 		{state, link_connection_released}]),
 	{next_state, link_connection_released, StateData}.
 
-awaiting_establish({'DL', 'ESTABLISH', confirm, _}, StateData) ->
-	{next_state, link_connection_released, StateData};
-awaiting_establish({'DL', 'RELEASE', indication, _}, StateData) ->
-	{next_state, link_connection_released, StateData};
-awaiting_establish({'DL', 'UNIT DATA', indication, _}, StateData) ->
-	{next_state, awaiting_establish, StateData};
-awaiting_establish({'DL', 'ESTABLISH', indication, _}, StateData) ->
-	{next_state, awaiting_establish, StateData};
-awaiting_establish(Event, StateData) ->
-	error_logger:error_report([{module, ?MODULE}, {event, Event},
-		{state, awaiting_establish}]),
-	{next_state, awaiting_establish, StateData}.
-
-link_connection_established({'DL', UI_I, indication, PDU}, StateData)
-		when UI_I == 'DATA'; UI_I == 'UNIT DATA' -> 
-	{bts, _, _, PDU} = next_event(StateData), 
+link_connection_established({'DL', 'UNIT DATA', indication, _PDU}, StateData) ->
+	{next_state, link_connection_established, StateData};
+link_connection_established({'DL', 'DATA', indication, PDU}, StateData) ->
+	{bts, _, i, PDU} = next_event(StateData),  % verify PDU
 	Next = (StateData#state.next rem length(StateData#state.events)) + 1,
-	NewStateData = StateData#state{next = Next},
-	case next_event(NewStateData) of
-		{bsc, Timeout, _Type, _PDU} ->
-			{next_state, link_connection_established, NewStateData, Timeout};
-		{bts, _, _, _} ->
-			{next_state, link_connection_established, NewStateData}
-	end;
-link_connection_established({'DL', 'ESTABLISH', indication, _}, StateData) ->
-	{next_state, link_connection_established, StateData};
-link_connection_established({'DL', 'ESTABLISH', confirm, _}, StateData) ->
-	{next_state, link_connection_established, StateData};
+	next_step(StateData#state{next = Next});
 link_connection_established({'DL', 'RELEASE', indication, _}, StateData) ->
 	{next_state, link_connection_released, StateData};
-link_connection_established(timeout, StateData) ->
-	case next_event(StateData) of
-		{bsc, _Timeout, i, PDU} ->
-			gen_fsm:send_event(StateData#state.sap, {'DL', 'DATA', request, PDU});
-		{bsc, _Timeout, ui, PDU} ->
-			gen_fsm:send_event(StateData#state.sap, {'DL', 'UNIT DATA', request, PDU})
-	end,
-	Next = (StateData#state.next rem length(StateData#state.events)) + 1,
-	NewStateData = StateData#state{next = Next},
-	case next_event(NewStateData) of
-		{bsc, Timeout, _Type, _PDU} ->
-			{next_state, link_connection_established, NewStateData, Timeout};
-		{bts, _, _, _} ->
-			{next_state, link_connection_established, NewStateData}
-	end;
+link_connection_established({timeout, PDU}, StateData) ->
+	gen_fsm:send_event(StateData#state.sap, {'DL', 'DATA', request, PDU}),
+	{next_state, link_connection_established, StateData};
 link_connection_established(Event, StateData) ->
 	error_logger:error_report([{module, ?MODULE}, {event, Event},
 		{state, link_connection_established}]),
 	{next_state, link_connection_established, StateData}.
-
-awaiting_release({'DL', 'RELEASE', confirm, _}, StateData) ->
-	{next_state, link_connection_released, StateData};
-awaiting_release({'DL', 'RELEASE', indication, _}, StateData) ->
-	{next_state, awaiting_release, StateData};
-awaiting_release({'DL', 'UNIT DATA', indication, _}, StateData) ->
-	{next_state, awaiting_release, StateData};
-awaiting_release({'DL', 'ESTABLISH', indication, _}, StateData) ->
-	{next_state, awaiting_release, StateData};
-awaiting_release({'DL', 'ESTABLISH', confirm, _}, StateData) ->
-	{next_state, awaiting_release, StateData};
-awaiting_release(Event, StateData) ->
-	error_logger:error_report([{module, ?MODULE}, {event, Event},
-		{state, awaiting_release}]),
-	{next_state, awaiting_release, StateData}.
 
 handle_event(_Event, StateName, StateData) ->
 	{next_state, StateName, StateData}.
@@ -127,15 +71,15 @@ handle_sync_event(_Event, _From, StateName, StateData) ->
 	{next_state, StateName, StateData}.
 	
 handle_info({'DL', 'ESTABLISH', _, _} = Primitive, StateName, StateData) ->
-	error_logger:info_report(["Established",
+	error_logger:info_report(["BSC Established",
 			{sap, StateData#state.sap}, {tei, StateData#state.tei}]),
-	StateName(Primitive, StateData);
+	?MODULE:StateName(Primitive, StateData);
 handle_info({'DL', 'RELEASE', _, _} = Primitive, StateName, StateData) ->
-	error_logger:info_report(["Released",
+	error_logger:info_report(["BSC Released",
 			{sap, StateData#state.sap}, {tei, StateData#state.tei}]),
-	StateName(Primitive, StateData);
+	?MODULE:StateName(Primitive, StateData);
 handle_info({'DL', _, _, _} = Primitive, StateName, StateData) ->
-	StateName(Primitive, StateData);
+	?MODULE:StateName(Primitive, StateData);
 handle_info(Info, StateName, StateData) ->
 	error_logger:error_report([{module, ?MODULE}, {line, ?LINE},
 		{state, StateName}, {info, Info}]),
@@ -153,3 +97,18 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 
 next_event(StateData) ->
 	lists:nth(StateData#state.next, StateData#state.events).
+
+next_step(StateData) ->
+	next_step(StateData, 0).
+next_step(StateData, Acc) ->
+	case next_event(StateData) of
+		{bts, T, ui, _} ->
+			Next = (StateData#state.next rem length(StateData#state.events)) + 1,
+			next_step(StateData#state{next = Next}, Acc + T);
+		{bts, _, i, _} ->
+			{next_state, link_connection_established, StateData};
+		{bsc, T, _, PDU} ->
+			gen_fsm:send_event_after(Acc + T, {timeout, PDU}),
+			Next = (StateData#state.next rem length(StateData#state.events)) + 1,
+			next_step(StateData#state{next = Next}, Acc + T)
+	end.
