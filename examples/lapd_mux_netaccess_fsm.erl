@@ -39,15 +39,18 @@
 %%----------------------------------------------------------------------
 
 init([Port, LapdId]) ->
+	{ok, deactivated, #state{port = Port, lapdid = LapdId}}.
+                
+deactivated({'PH', 'ACTIVATE', request, _}, StateData) ->
 	L1 = #level1{l1_mode = ?IISDNl1modHDLC},
 	L2Parms = #l2_lap_params{mode = ?IISDNl2modDISABLED},
-	D = #data_interface{enable = 1, data_channel = LapdId},
+	D = #data_interface{enable = 1, data_channel = StateData#state.lapdid},
 	L2 = #level2{par = L2Parms, data_interface = D},
 	ProtoData = #ena_proto_data{level1 = L1, level2 = L2},
 	% send an L4L3mENABLE_PROTOCOL to activate the channel
-	netaccess:enable_protocol(Port, LapdId, ProtoData),
-	{ok, deactivated, #state{port = Port, lapdid = LapdId}}.
-                
+	netaccess:enable_protocol(StateData#state.port,
+			StateData#state.lapdid, ProtoData),
+	{next_state, deactivated, StateData};
 deactivated({_Port, L3L4m}, StateData) when is_record(L3L4m, l3_to_l4),
 		L3L4m#l3_to_l4.msgtype == ?L3L4mPROTOCOL_STATUS ->
 	P = iisdn:protocol_stat(L3L4m#l3_to_l4.data),

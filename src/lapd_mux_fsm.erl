@@ -34,6 +34,10 @@
 %%%
 %%% 	<p>The call back module must handle the L1 &lt;- L2 primitives
 %%% 	in it's state(s):</p>
+%%% 	<pre>StateName({'PH', 'ACTIVATE', request, _}, StateData) -&gt;</pre>
+%%% 	<p>In the above state handler the callback module will enable the
+%%% 	layer 1 implementation using the implementation specific API.</p>
+%%%
 %%% 	<pre>StateName({'PH', 'DATA', request, PDU}, StateData) when is_binary(PDU) -&gt;</pre>
 %%% 	<p>In the above state handler the callback module will forward the 
 %%% 	PDU to the layer 1 implementation using the implementation specific
