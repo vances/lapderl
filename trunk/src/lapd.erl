@@ -68,6 +68,7 @@ start_link(Module, Args, Options) ->
 			{value, {mux, MUX, _, _}} = lists:keysearch(mux, 1, Children),
 			gen_server:cast(LME, {mux, MUX}),
 			gen_fsm:send_all_state_event(MUX, {lme, LME}),
+			gen_fsm:send_event(MUX, {'PH', 'ACTIVATE', request, undefined}),
 			{ok, Sup};
 		{error, Reason} ->
 			{error, Reason}
