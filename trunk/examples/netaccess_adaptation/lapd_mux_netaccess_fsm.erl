@@ -75,9 +75,7 @@ deactivated({_Port, L3L4m}, StateData) when is_record(L3L4m, l3_to_l4),
 deactivated({_Port, L3L4m}, StateData) when is_record(L3L4m, l3_to_l4),
 		L3L4m#l3_to_l4.msgtype == ?L3L4mERROR ->
 	Reason = iisdn:error_code(L3L4m#l3_to_l4.data),
-	{stop, Reason, StateData};
-deactivated(_Event, StateData) ->
-	{next_state, deactivated, StateData}.
+	{stop, Reason, StateData}.
 
 %% send a frame to layer 1
 activated({'PH', 'DATA', request, PDU}, StateData) when is_binary(PDU) ->
@@ -87,15 +85,13 @@ activated({'PH', 'DATA', request, PDU}, StateData) when is_binary(PDU) ->
 activated({_Port, L3L4m}, StateData) when is_record(L3L4m, l3_to_l4),
 		L3L4m#l3_to_l4.msgtype == ?L3L4mERROR ->
 	Reason = iisdn:error_code(L3L4m#l3_to_l4.data),
-	{stop, Reason, StateData};
-activated(_Event, StateData) ->
-	{next_state, activated, StateData}.
+	{stop, Reason, StateData}.
 
 handle_event(_Event, StateName, StateData) ->
 	{next_state, StateName, StateData}.
 
 handle_sync_event(_Event, _From, StateName, StateData) ->
-	{next_state, StateName, StateData}.
+	{stop, StateName, StateData}.
 
 %% handle a control message received from netaccess
 handle_info({Port, {'L3L4m', CtrlBin, _}}, StateName, StateData) 
@@ -107,11 +103,15 @@ handle_info({_Port, {'L3L4m', _, PDU}}, StateName, StateData)
 		when is_binary(PDU), size(PDU) > 0 ->
 	gen_fsm:send_event(self(), {'PH', 'DATA', indication, PDU}),
 	{next_state, StateName, StateData};
-handle_info(_Event, StateName, StateData) ->
-	{next_state, StateName, StateData}.
+handle_info({'EXIT', Port, Reason}, _StateName, StateData) 
+		when is_port(Port) ->
+	{stop, Reason, StateData}.
 
+terminate(_Reason, _StateName, StateData) 
+		when is_port(StateData#state.port) ->
+	catch netaccess:close(StateData#state.port);
 terminate(_Reason, _StateName, StateData) ->
-	catch netaccess:close(StateData#state.port).
+	ok.
 
 code_change(_OldVersion, StateName, StateData, _Extra) ->
 	{ok, StateName, StateData}.
