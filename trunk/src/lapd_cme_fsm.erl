@@ -52,13 +52,13 @@ active({'MDL', 'ERROR', indication, Error}, StateData)
 		StateData#state.role == network, Error == 'G';
 		StateData#state.role == network, Error == 'H' ->
 	log(Error, StateData),
-	gen_fsm:send_event(StateData#state.lme,
+	gen_server:cast(StateData#state.lme,
 			{'MDL', 'TEI CHECK', request, {StateData#state.tei, StateData#state.dle}}),
 	{next_state, active, StateData};
 active({'MDL', 'ERROR', indication, Error}, StateData)
 		when Error == 'C'; Error == 'D'; Error == 'G'; Error == 'H' ->
 	log(Error, StateData),
-	gen_fsm:send_event(StateData#state.lme,
+	gen_server:cast(StateData#state.lme,
 			{'MDL', 'TEI VERIFY', request, {StateData#state.tei, StateData#state.dle}}),
 	{next_state, active, StateData};
 active({'MDL', 'ERROR', indication, Error}, StateData) ->
@@ -69,12 +69,12 @@ active({'MDL', 'TEI CHECK', response, free}, StateData) ->
 active({'MDL', 'TEI CHECK', response, single}, StateData) ->
 	{next_state, active, StateData};
 active({'MDL', 'TEI CHECK', response, multiple}, StateData) ->
-	gen_fsm:send_event(StateData#state.lme,
+	gen_server:cast(StateData#state.lme,
 		{'MDL', 'TEI REMOVAL', request, {StateData#state.tei, StateData#state.dle}}),
 	{next_state, active, StateData};
 active({'MDL', 'ASSIGN', request, {TEI, CES}}, StateData)
 		when CES == StateData#state.dle ->
-	gen_fsm:send_event(StateData#state.dle, {'MDL', 'ASSIGN', request, {TEI, CES}}),
+	gen_server:cast(StateData#state.lme, {'MDL', 'ASSIGN', request, {TEI, CES}}),
 	{next_state, active, StateData#state{tei = TEI}};
 active(Event, StateData) ->
 	error_logger:error_report([{module, ?MODULE}, {line, ?LINE}, {message, Event}]),
