@@ -1,11 +1,12 @@
 
 ERL = erl
+ERLC = erlc
 
-%.boot:ebin/%.rel ebin/%.app
-	${ERLC} $<
+%.boot:ebin/%.rel ebin/lapd.app all
+	${ERLC} -I ./ebin $<
 
 %.tar.gz:	%.boot
-	${ERL} -noshell -run systools make_tar $* -run init stop
+	${ERL} -noshell -pa ./ebin -run systools make_tar $* -run init stop
 
 .PHONY:	all
 all:	src
@@ -14,10 +15,7 @@ all:	src
 src:
 	cd src && $(MAKE)
 
-.PHONY:	release
-release: lapd.tar.gz src sys.config 
-
 .PHONY:	clean
 clean:
 	cd src && $(MAKE) clean
-	-rm lapd.script lapd.tar.gz
+	-rm *.script *.boot
