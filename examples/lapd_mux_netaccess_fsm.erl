@@ -89,7 +89,7 @@ handle_sync_event(_Event, _From, StateName, StateData) ->
 handle_info({Port, {'L3L4m', CtrlBin, _}}, StateName, StateData) 
 		when is_binary(CtrlBin), size(CtrlBin) > 0 ->
 	L3L4_rec = iisdn:l3_to_l4(CtrlBin),
-	StateName({Port, L3L4_rec}, StateData);
+	?MODULE:StateName({Port, L3L4_rec}, StateData);
 %% handle a frame received from netaccess' layer 1
 handle_info({_Port, {'L3L4m', _, PDU}}, StateName, StateData) 
 		when is_binary(PDU), size(PDU) > 0 ->

@@ -30,19 +30,19 @@
 -behaviour(gen_fsm).
 
 -export([init/1, terminate/3]).
--export([await_bind/2, active/2]).
+-export([await_dle/2, active/2]).
 -export([handle_event/3, handle_info/3, handle_sync_event/4, code_change/4]).
 
 -record(state, {lme, dle, sapi, tei, role}).
 
-init([_Sup, _PhySAP, SAPI, TEI, LME, Options]) ->
+init([_PhySAP, SAPI, LME, Options]) ->
 	Role = case lists:keysearch(role, 1, Options) of
 		{value, Value} -> Value;
 		_ -> user
 	end,
-	{ok, await_bind, #state{lme = LME, sapi = SAPI, tei = TEI, role = Role}}.
+	{ok, await_dle, #state{lme = LME, sapi = SAPI, role = Role}}.
 
-await_bind({'MDL', 'BIND', request, {_CME, DLE, _USAP}}, StateData) ->
+await_dle({dle, DLE}, StateData) ->
 	{next_state, active, StateData#state{dle = DLE}}.
 
 %% ref:  Q.921 Annex II Table II.1/Q921 - Management Entity Actions for MDL-Error-Indications

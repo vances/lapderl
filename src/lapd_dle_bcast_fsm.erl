@@ -82,7 +82,7 @@ information_transfer(Event, StateData) ->
 	{next_state, information_transfer, StateData}.
 
 %% implementation specific state and primitive for associating a LAPD-User pid()
-handle_event({'MDL', 'BIND', request, {_CME, _DLE, USAP}}, StateName, StateData) ->
+handle_event({'MDL', 'BIND', request, USAP}, StateName, StateData) ->
 	{next_state, StateName, StateData#state{usap = USAP}};
 handle_event(_Event, StateName, StateData) ->
 	{next_state, StateName, StateData}.
