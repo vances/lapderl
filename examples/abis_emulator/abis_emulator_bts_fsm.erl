@@ -72,7 +72,8 @@ awaiting_establish(Event, StateData) ->
 link_connection_established({'DL', UI_I, indication, PDU}, StateData)
 		when UI_I == 'DATA'; UI_I == 'UNIT DATA' -> 
 	{bsc, _, _, PDU} = next_event(StateData), 
-	NewStateData = StateData#state{next = StateData#state.next + 1},
+	Next = (StateData#state.next rem length(StateData#state.events)) + 1,
+	NewStateData = StateData#state{next = Next},
 	case next_event(NewStateData) of
 		{bts, Timeout, _Type, _PDU} ->
 			{next_state, link_connection_established, NewStateData, Timeout};
@@ -92,7 +93,8 @@ link_connection_established(timeout, StateData) ->
 		{bts, _Timeout, ui, PDU} ->
 			gen_fsm:send_event(StateData#state.sap, {'DL', 'UNIT DATA', request, PDU})
 	end,
-	NewStateData = StateData#state{next = StateData#state.next + 1},
+	Next = (StateData#state.next rem length(StateData#state.events)) + 1,
+	NewStateData = StateData#state{next = Next},
 	case next_event(NewStateData) of
 		{bts, Timeout, _Type, _PDU} ->
 			{next_state, link_connection_established, NewStateData, Timeout};
