@@ -25,37 +25,89 @@
 
 	<h3>Process Communication</h3>
 	<p>A number of processes interact to provide the LAPD service. 
-	<a href="#figure_1-1">Figure 1-1</a> depicts a moderately complex configuration with two LAPD-user processes.
-	One LAPD-user has two service access point identifiers (SAPI) active while the other has only one.  This figure 
-	represents one physical service access point (SAP) only.  A seperate LAPD layer is created for each physical SAP.
-	Each LAPD layer has one layer management entity (LME) process.  Each SAPI has one data link entity (DLE) process
-	and one connection management entity (CME) process.</p>
-	<p>The DLE processes function as the service access points for layer 3.  The LAPD service users exchange primitives 
-	in the form of Erlang messages with the DLE processes.  The pid of a DLE process functions as the SAP for a 
-	particular SAPI on a specific physical SAP.<p>
-
+	<a href="#figure1-1">Figure 1-1</a> depicts a moderately complex configuration resembling an
+	ISDN basic rate access arrangement.  Here we have two LAPD service users; call control and X.25 packet
+	communications.  Service access point identifier (SAPI) values are standardized so the call control user
+	will use SAPI 0 while the X.25 user will use SAPI 16.  A LAPD-User pid represents a user service access
+	point (USAP)</p>
+	
+	<p>A data link entity (DLE) process performs the data link procedures for a SAPI.  There are two types
+	of DLE procedures; point-to-point and broadcast.  For the point-to-point procedures a connection
+	management entity (CME) process performs the procedures necessary to manage the connection.<p>
+	
+	<p>A terminal equipment identifier (TEI) identifies a particular terminal equipment (TE) on a physical
+	service access point (PhySAP).  A TE may contain multiple point-to-point TEIs.  The broadcast
+	procedures DLE uses the group TEI (127).</p>
+	
 	Figure 1-1<br>
-	<img alt="diagram of process communication" name="figure_1-1" src="process_communication.png"><br>
+	<img alt="diagram of process communication" name="figure1-1" src="process_communication.png"><br>
 
+	<p>In <a href="#figure1-1">Figure 1-1</a> the call control USAP has been bound to a point-to-point DLE
+	using a statically assigned TEI (3) as well as a broadcast DLE using the group TEI (127).  The X.25 USAP
+	has been bound to a point-to-point DLE which has received an automatically assigned TEI (88).  Automatic
+	TEI assignment procedures are handled by the layer management entity (LME) process.</p>
+
+	<p>The multiplex procedures (MUX) process distributes frames received from layer 1 on the PhySAP to the
+	individual DLEs based on the data link connection identifier (DLCI).  The DLCI is the concatenation of
+	the SAPI and TEI values in the address portion of the received frame.  SAPI 63 is reserved for layer 2
+	management.  The LME uses the broadcast procedures on the group TEI of SAPI 63 to exchange layer 2
+	management PDUs with a remote LME.</p>
+
+	<p>The DLE processes function as the service access points for layer 3.  The LAPD service users exchange
+	primitives in the form of Erlang messages with the DLE processes.  The pid of a DLE process functions as
+	the SAP for a particular SAPI on a specific physical SAP.<p>
+
+	<p>One LAPD service layer is started for each layer 1 SAP required.  Each LAPD layer has one LME process
+	and one MUX process.</p>
+	
 	<p>A system management application process (SMAP) configures the LAPD service by exchanging primitives with
 	the LME and CME processes.  These interfaces are not the subject of standardization and the primitives used
 	here are implementation specific.  The <a href="lapd.html"><tt>lapd</tt></a> module provides the application 
-	programming interface which the SMAP (conceptually) uses to maintain the service configuration.</p>
+	programming interface which is used to maintain the service configuration.</p>
+
+	<h3>Modules</h3>
+
+	<p>In the above discussion we described the communicating processes within the LAPD service layer.  Here we
+	describe the modules which implement these processes.</p>
+
+	<h5>LME</h5>
+	<p>The layer management entity (LME) is implemented in <tt>lapd_lme_server</tt>.  This is a gen_server
+	behaviour module.
+
+	<h5>CME</h5>
+	<p>The connection management entity (CME) is implemented in <tt>lapd_cme_fsm</tt>.  This is a gen_fsm
+	behaviour module.
+
+	<h5>DME</h5>
+	<p>There are two types of data link entity (DLE).  Each is implemented in a gen_fsm behaviour module.
+	The point-to-point procedures are implemented in <tt>lapd_dle_p2p_fsm</tt>.  The broadcast procedures
+	are implemented in <tt>lapd_dle_bcast_fsm</tt>.</p>
+
+	<h5>MUX</h5>
+	<p>The multiplex procedures (MUX) process is implemented by an extended gen_fsm behaviour in conjunction
+	with a user callback module.  The common procedures are implemented in 
+	<a href="lapd_mux_fsm.html"><tt>lapd_mux_fsm</tt></a> which is a behaviour module which itself behaves
+	as a gen_fsm module.  Specific layer 1 implementations are adapted to this LAPD implementation by 
+	providing a call back module which behaves to <a href="lapd_mux_fsm.html"><tt>lapd_mux_fsm</tt></a>.</p>
 
 	<h3>Supervision Tree</h3>
-	<p>The processes which make up an instance of the LAPD service layer are all instantiated within a seperate
+	<p>The processes which make up an instance of the LAPD service layer are all instantiated within a single 
 	supervision tree.  It is expected that the top level supervisor of each layer will be placed under the
-	supervision tree of the including application.  <a href="#figure_1-2">Figure 1-2</a> shows the structure of
+	supervision tree of the including application.  <a href="#figure1-2">Figure 1-2</a> shows the structure of
 	the supervision tree.</p>
 
 	Figure 1-2<br>
-	<img alt="diagram of supervision tree" src="supervision_tree.png"><br>
+	<img alt="diagram of supervision tree" name="figure1-2" src="supervision_tree.png"><br>
 
-	<p>When <a href="lapd.html#start_link-1"><tt>lapd:start_link/1</tt></a> is called a top level supervisor process
-	is created with three child processes; the LME, the multiplexer and another supervisor which initially has no children.</p>
+	<p>When <a href="lapd.html#start_link-1"><tt>lapd:start_link/3</tt></a> is called a top level supervisor process
+	is created with three child processes; the LME, the MUX and another supervisor which initially has no children.
+	The <a href="lapd_mux_fsm.html"><tt>lapd_mux_fsm</tt></a> callback module name is provided to start a MUX 
+	process which can adapt the specific implementation of layer 1 in use to this LAPD service layer.  Arguments
+	are also passed to specify instance specific configuration such as PhySAP.</p>
 
 	<p>For each SAPI required <a href="lapd.html#open-3"><tt>lapd:open/3</tt></a> is called.  This causes the creation
-	of a new supervisor which in turn creates a CME and a DLE process to handle the new SAPI.</p>
+	of a new supervisor which in turn creates the DLE to perform the data link procedures for the new SAPI.  Either a
+	point-to-point DLE and CME process pair or a broadcast DLE are started.</p>
 
 	<h3>Primitives</h3>
 
