@@ -631,7 +631,7 @@ multiple_frame_established({'DL', 'ESTABLISH', request, _DlParms}, StateData) ->
 	% Stop T203
 	cancel_timer(StateData#state.t203_ref),
 	% Establish data link
-	NewStateData = establish_data_link(StateData#state{i_queue = []}),
+	NewStateData = establish_data_link(StateData#state{t203_ref = undefined, i_queue = []}),
 	% Set layer 3 initiated
 	{next_state, awaiting_establishment, NewStateData#state{layer3_initiated = true}};
 multiple_frame_established({'DL', 'RELEASE', request, _DlParms}, StateData) ->
