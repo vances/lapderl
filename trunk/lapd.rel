@@ -1,0 +1,4 @@
+{release, {"alpha-lapd", "1.0"}, {erts, "5.4.3"},
+	[{kernel, "2.10.3"},
+	 {stdlib, "1.13.3"},
+	 {lapd, "1.1"}]}.
