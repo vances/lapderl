@@ -203,6 +203,7 @@ tei_assigned({'PH', 'DATA', indication,
 	catch gen_fsm:send_event(NextStateData#state.usap, {'DL', 'ESTABLISH', indication, undefined}),
 	% V(S)=0, V(A)=0, V(R)=0
 	% Start T203
+	cancel_timer(NextStateData#state.t203_ref),
 	T203_ref = gen_fsm:send_event_after(NextStateData#state.t203, t203_expiry),
 	NewStateData = NextStateData#state{'V(S)' = 0, 'V(A)' = 0, 'V(R)' = 0, t203_ref = T203_ref},
 	{next_state, multiple_frame_established, NewStateData};
@@ -358,6 +359,7 @@ awaiting_establishment({'PH', 'DATA', indication,
 	% Stop T200
 	cancel_timer(StateData#state.t200_ref),
 	% Start T203
+	cancel_timer(StateData#state.t203_ref),
 	T203_ref = gen_fsm:send_event_after(StateData#state.t203, t203_expiry),
 	% V(S)=0, V(A)=0, V(R)=0
 	NewStateData = StateData#state{t200_ref = undefined, t203_ref = T203_ref,
@@ -384,6 +386,7 @@ awaiting_establishment({'PH', 'DATA', indication,
 	% Stop T200
 	cancel_timer(StateData#state.t200_ref),
 	% Start T203
+	cancel_timer(StateData#state.t203_ref),
 	T203_ref = gen_fsm:send_event_after(StateData#state.t203, t203_expiry),
 	% V(S)=0, V(A)=0, V(R)=0
 	NewStateData = StateData#state{t200_ref = undefined, t203_ref = T203_ref,
@@ -672,9 +675,9 @@ multiple_frame_established(t200_expiry, StateData) ->
 	{next_state, timer_recovery, NewStateData#state{rc = StateData#state.rc + 1}};
 multiple_frame_established(t203_expiry, StateData) ->
 	% transmit ENQUIRY
-	NewStateData = transmit_enquiry(StateData#state{t200_ref = undefined}),
+	NewStateData = transmit_enquiry(StateData#state{t203_ref = undefined}),
 	% RC=0
-	{next_state, timer_recovery, NewStateData#state{rc = 0, t203_ref = undefined}};
+	{next_state, timer_recovery, NewStateData#state{rc = 0}};
 multiple_frame_established({'MDL', 'REMOVE', request, {_TEI, _CES}}, StateData) ->
 	% Discard I and UI queues
 	NewStateData = StateData#state{tei = undefined, i_queue = [], ui_queue = []},
@@ -722,6 +725,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 	% Stop T200
 	% Start T203
 	cancel_timer(NewStateData#state.t200_ref),
+	cancel_timer(NewStateData#state.t203_ref),
 	T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expiry),
 	% V(S)=0, V(A)=0, V(R)=0
 	{next_state, multiple_frame_established,
@@ -856,6 +860,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 					% Stop T200
 					% Start T203
 					cancel_timer(NewStateData#state.t200_ref),
+					cancel_timer(NewStateData#state.t203_ref),
 					T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expiry),
 					{next_state, multiple_frame_established,
 							NewStateData#state{t200_ref = undefined, t203_ref = T203_ref}};
@@ -911,6 +916,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 			% Stop T200
 			% Start T203
 			cancel_timer(NewStateData#state.t200_ref),
+			cancel_timer(NewStateData#state.t203_ref),
 			T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expiry),
 			{next_state, multiple_frame_established,
 					NewStateData#state{t200_ref = undefined, t203_ref = T203_ref}};
@@ -959,6 +965,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 			% Stop T200
 			% Start T203
 			cancel_timer(NewStateData#state.t200_ref),
+			cancel_timer(NewStateData#state.t203_ref),
 			T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expiry),
 			{next_state, multiple_frame_established,
 					NewStateData#state{t200_ref = undefined, t203_ref = T203_ref}};
@@ -1261,6 +1268,7 @@ timer_recovery({'PH', 'DATA', indication,
 	% Stop T200
 	% Start T203
 	cancel_timer(NewStateData#state.t200_ref),
+	cancel_timer(NewStateData#state.t203_ref),
 	T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expiry),
 	% V(S)=0, V(A)=0, V(R)=0
 	{next_state, multiple_frame_established, NewStateData#state{t200_ref = undefined,
@@ -1401,6 +1409,7 @@ timer_recovery({'PH', 'DATA', indication,
 					% Stop T200
 					% Start T203
 					cancel_timer(NextStateData2#state.t200_ref),
+					cancel_timer(NextStateData2#state.t203_ref),
 					T203_ref = gen_fsm:send_event_after(NextStateData2#state.t203, t203_expiry),
 					NewStateData = NextStateData2#state{t200_ref = undefined, t203_ref = T203_ref},
 					% Invoke retransmission
