@@ -732,7 +732,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 	% Stop T200
 	% Start T203
 	cancel_timer(NewStateData#state.t200),
-	T203_ref = gen_event:send_event_after(NewStateData#state.t203, t203_expired),
+	T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expired),
 	% V(S)=0, V(A)=0, V(R)=0
 	{next_state, multiple_frame_established,
 			NewStateData#state{t200_ref = undefined, t203_ref = T203_ref,
@@ -865,13 +865,13 @@ multiple_frame_established({'PH', 'DATA', indication,
 					% Stop T200
 					% Start T203
 					cancel_timer(NewStateData#state.t200),
-					T203_ref = gen_event:send_event_after(NewStateData#state.t203, t203_expired),
+					T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expired),
 					{next_state, multiple_frame_established,
 							NewStateData#state{t200_ref = undefined, t203_ref = T203_ref}};
 				_ ->                                 % false
 					% Restart T200
 					cancel_timer(NewStateData#state.t200),
-					T200_ref = gen_event:send_event_after(NewStateData#state.t200, t200_expired),
+					T200_ref = gen_fsm:send_event_after(NewStateData#state.t200, t200_expired),
 					{next_state, multiple_frame_established, NewStateData#state{t200_ref = T200_ref}}
 			end;
 		false ->
@@ -918,7 +918,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 			% Stop T200
 			% Start T203
 			cancel_timer(NewStateData#state.t200),
-			T203_ref = gen_event:send_event_after(NewStateData#state.t203, t203_expired),
+			T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expired),
 			{next_state, multiple_frame_established,
 					NewStateData#state{t200_ref = undefined, t203_ref = T203_ref}};
 		false ->
@@ -964,7 +964,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 			% Stop T200
 			% Start T203
 			cancel_timer(NewStateData#state.t200),
-			T203_ref = gen_event:send_event_after(NewStateData#state.t203, t203_expired),
+			T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expired),
 			{next_state, multiple_frame_established,
 					NewStateData#state{t200_ref = undefined, t203_ref = T203_ref}};
 		false ->
