@@ -24,7 +24,7 @@
 init([MUXCallBack, Args, Options]) ->
 	LMEStartFunc = {gen_server, start_link, [lapd_lme_server, [], []]},
 	LMEChildSpec = {lme, LMEStartFunc, permanent, 4000, worker, [lapd_lme_server]},
-	MUXStartFunc = {lapd_mux_fsm, start_link, [MUXCallBack, [Args], Options]},
+	MUXStartFunc = {lapd_mux_fsm, start_link, [MUXCallBack, Args, Options]},
 	MUXChildSpec = {mux, MUXStartFunc, permanent, 4000, worker, [lapd_mux_fsm, MUXCallBack]},
 	SAPStartFunc = {supervisor, start_link, [lapd_sap_sup, []]},
 	SAPChildSpec = {sap, SAPStartFunc, permanent, infinity, supervisor, [lapd_sap_sup]},
