@@ -1,5 +1,6 @@
 %%%---------------------------------------------------------------------
 %%% @copyright Motivity Telecom Inc. 2004
+%%% @end
 %%%
 %%% All rights reserved. No part of this computer program(s) may be
 %%% used, reproduced, stored in any retrieval system, or transmitted,
@@ -47,6 +48,7 @@
 %%
 %% define what call backs users must export
 %%
+%% @hidden
 behaviour_info(callbacks) ->
 	gen_fsm:behaviour_info(callbacks);
 behaviour_info(Other) -> 
@@ -59,45 +61,59 @@ behaviour_info(Other) ->
 %%  The gen_fsm API functions
 %%----------------------------------------------------------------------
 
+%% @hidden
 start(Module, Args, Options) ->
 	gen_fsm:start(?MODULE, [Module, Args], Options).
 
+%% @hidden
 start(FsmRef, Module, Args, Options) ->
 	gen_fsm:start(FsmRef, ?MODULE, [Module, Args], Options).
 
+%% @hidden
 start_link(Module, Args, Options) ->
 	gen_fsm:start_link(?MODULE, [Module, Args], Options).
 
+%% @hidden
 start_link(FsmRef, Module, Args, Options) ->
 	gen_fsm:start_link(FsmRef, ?MODULE, [Module, Args], Options).
 
+%% @hidden
 send_event(FsmRef, Event) ->
 	gen_fsm:send_event(FsmRef, Event).
 
+%% @hidden
 sync_send_event(FsmRef, Event) ->
 	gen_fsm:sync_send_event(FsmRef, Event).
 
+%% @hidden
 sync_send_event(FsmRef, Event, Timeout) ->
 	gen_fsm:sync_send_event(FsmRef, Event, Timeout).
 
+%% @hidden
 send_all_state_event(FsmRef, Event) ->
 	gen_fsm:send_all_state_event(FsmRef, Event).
 
+%% @hidden
 sync_send_all_state_event(FsmRef, Event) ->
 	gen_fsm:sync_send_all_state_event(FsmRef, Event).
 
+%% @hidden
 sync_send_all_state_event(FsmRef, Event, Timeout) ->
 	gen_fsm:sync_send_all_state_event(FsmRef, Event, Timeout).
 
+%% @hidden
 reply(Caller, Reply) ->
 	gen_fsm:reply(Caller, Reply).
 
+%% @hidden
 send_event_after(Time, Event) ->
 	gen_fsm:send_event_after(Time, Event).
 
+%% @hidden
 start_timer(Time, Msg) ->
 	gen_fsm:start_timer(Time, Msg).
 
+%% @hidden
 cancel_timer(Ref) ->
 	gen_fsm:cancel_timer(Ref).
 
@@ -106,6 +122,7 @@ cancel_timer(Ref) ->
 %%  The gen_fsm call backs
 %%----------------------------------------------------------------------
 
+%% @hidden
 init([Module, Args]) ->
 	process_flag(trap_exit, true),
 	case Module:init(Args) of
@@ -129,6 +146,7 @@ init([Module, Args]) ->
 			Other
 	end.
                 
+%% @hidden
 %% L1 -> L2 PDU (Broadcast Datalink Procedures) L2 management
 statename({'PH', 'DATA', indication, <<_:2, 63:6, _:1, 127:7, _/binary>>} = Event, State) ->
 	gen_server:cast(State#lapd_mux_state.lme, Event),
@@ -168,6 +186,7 @@ statename(Event, State) ->
 			Other
 	end.
 
+%% @hidden
 statename(Event, From, State) ->
 	Module = State#lapd_mux_state.module,
 	StateName = State#lapd_mux_state.statename,
@@ -194,6 +213,7 @@ statename(Event, From, State) ->
 			Other
 	end.
 
+%% @hidden
 %% post initialization assignment of LME pid
 handle_event({lme, LME}, statename, State) ->
 	NewState = State#lapd_mux_state{lme = LME},
@@ -234,6 +254,7 @@ handle_event(Event, statename, State) ->
 			Other
 	end.
 
+%% @hidden
 handle_sync_event(Event, From, statename, State) ->
 	Module = State#lapd_mux_state.module,
 	StateName = State#lapd_mux_state.statename,
@@ -260,6 +281,7 @@ handle_sync_event(Event, From, statename, State) ->
 			Other
 	end.
 
+%% @hidden
 handle_info(Event, statename, State) ->
 	Module = State#lapd_mux_state.module,
 	case Module:handle_info(Event, State#lapd_mux_state.statedata) of
@@ -276,12 +298,14 @@ handle_info(Event, statename, State) ->
 			Other
 	end.
 
+%% @hidden
 terminate(Reason, statename, State) ->
 	Module = State#lapd_mux_state.module,
 	StateName = State#lapd_mux_state.statename,
 	StateData = State#lapd_mux_state.statedata,
 	Module:terminate(Reason, StateName, StateData).
 
+%% @hidden
 code_change(OldVersion, statename, State, Extra) ->
 	Module = State#lapd_mux_state.module,
 	StateName = State#lapd_mux_state.statename,
