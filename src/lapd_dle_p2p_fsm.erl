@@ -606,7 +606,7 @@ awaiting_release({'PH', 'DATA', indication,
 		Data/binary>>},                    % Information
 		StateData) ->
 	% DL UNIT DATA indication
-	gen_fsm:send_event(StateData#state.mux, {'DL', 'UNIT DATA', indication, Data}),
+	gen_fsm:send_event(StateData#state.usap, {'DL', 'UNIT DATA', indication, Data}),
 	{next_state, awaiting_release, StateData};
 % ref:  ETS 300 125 Figure B-9/Q.921 (3 of 5) 
 % ref:  ETS 300 125 5.8.5 Frame rejection condition
@@ -1148,7 +1148,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 		Data/binary>>},                    % Information
 		StateData) ->
 	% DL UNIT DATA indication
-	gen_fsm:send_event(StateData#state.mux, {'DL', 'UNIT DATA', indication, Data}),
+	gen_fsm:send_event(StateData#state.usap, {'DL', 'UNIT DATA', indication, Data}),
 	{next_state, multiple_frame_established, StateData};
 % ref:  ETS 300 125 Figure B-9/Q.921 (2 of 5) 
 % ref:  ETS 300 125 5.8.5 Frame rejection condition
@@ -1634,7 +1634,7 @@ timer_recovery({'PH', 'DATA', indication,
 		Data/binary>>},                    % Information
 		StateData) ->
 	% DL UNIT DATA indication
-	gen_fsm:send_event(StateData#state.mux, {'DL', 'UNIT DATA', indication, Data}),
+	gen_fsm:send_event(StateData#state.usap, {'DL', 'UNIT DATA', indication, Data}),
 	{next_state, timer_recovery, StateData};
 % ref:  ETS 300 125 Figure B-9/Q.921 (2 of 5) 
 % ref:  ETS 300 125 5.8.5 Frame rejection condition
