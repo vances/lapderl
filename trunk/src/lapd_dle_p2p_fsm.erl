@@ -664,6 +664,11 @@ multiple_frame_established({'DL', 'DATA', request, Data}, StateData) when is_bin
 			{next_state, multiple_frame_established, 
 					NewStateData#state{t203_ref = undefined, t200_ref = T200_ref}}
 	end;
+multiple_frame_established('CLEAR PEER RECEIVER BUSY', StateData)
+		when StateData#state.peer_receiver_busy == true  ->
+	{next_state, multiple_frame_established, StateData};
+multiple_frame_established('CLEAR PEER RECEIVER BUSY', StateData) ->
+	{next_state, multiple_frame_established, transmit_iqueue(StateData)};
 % ref:  ETS 300 125 Figure B-7/Q.921 (2 of 10) 
 multiple_frame_established(t200_expiry, StateData) ->
 	% RC=0
@@ -822,7 +827,13 @@ multiple_frame_established({'PH', 'DATA', indication,
 		2#0000000:7, 1:1, NR:7, PF:1>>},   % Command (RR)
 		StateData) ->
 	% Clear peer receiver busy
-	NextStateData = transmit_iqueue(StateData#state{peer_receiver_busy = false}),
+	case StateData#state.peer_receiver_busy of
+		true ->
+			NextStateData = StateData#state{peer_receiver_busy = false},
+			gen_fsm:send_event(self(), 'CLEAR PEER RECEIVER BUSY');
+		_ ->
+			NextStateData = StateData
+	end,
 	% COMMAND?
 	NextStateData2 = case CR of
 		CR when NextStateData#state.role == network , CR == 0; 
@@ -881,7 +892,13 @@ multiple_frame_established({'PH', 'DATA', indication,
 		2#0000100:7, 1:1, NR:7, PF:1>>},     % Command (REJ)
 		StateData) ->
 	% Clear peer receiver busy
-	NextStateData = transmit_iqueue(StateData#state{peer_receiver_busy = false}),
+	case StateData#state.peer_receiver_busy of
+		true ->
+			NextStateData = StateData#state{peer_receiver_busy = false},
+			gen_fsm:send_event(self(), 'CLEAR PEER RECEIVER BUSY');
+		_ ->
+			NextStateData = StateData
+	end,
 	% COMMAND?
 	NextStateData2 = case CR of
 		CR when NextStateData#state.role == network , CR == 0; 
@@ -911,8 +928,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 	case validate_nr(NextStateData2#state.'V(A)', NR, NextStateData2#state.'V(S)') of
 		true ->
 			% V(A)=N(R)
-			NextStateData3 = acknowledge_iqueue(NextStateData2, NR),
-			NewStateData = transmit_iqueue(NextStateData3#state{'V(S)' = NR}),
+			NewStateData = acknowledge_iqueue(NextStateData2, NR),
 			% Stop T200
 			% Start T203
 			cancel_timer(NewStateData#state.t200_ref),
@@ -932,7 +948,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 		2#0000010:7, 1:1, NR:7, PF:1>>},     % Command (RNR)
 		StateData) ->
 	% Set peer receiver busy
-	NextStateData = transmit_iqueue(StateData#state{peer_receiver_busy = false}),
+	NextStateData = StateData#state{peer_receiver_busy = false},
 	% COMMAND?
 	NextStateData2 = case CR of
 		CR when NextStateData#state.role == network , CR == 0; 
@@ -1032,15 +1048,7 @@ multiple_frame_established({'PH', 'DATA', indication,
 									reject_exception = false};
 						0 ->
 							% acknowledge pending?
-							case StateData#state.acknowledge_pending of
-								true ->
-									StateData;
-								_ ->
-									% ACKNOWLEDGE PENDING
-									gen_fsm:send_event(self(), 'ACKNOWLEDGE PENDING'),
-									% Set acknowledge pending
-									StateData#state{'V(R)' = NewVR, acknowledge_pending = true}
-							end
+							acknowledge_pending(StateData#state{'V(R)' = NewVR})
 					end;
 				_ ->
 					% Discard INFORMATION
@@ -1114,25 +1122,6 @@ multiple_frame_established({'PH', 'DATA', indication,
 			cancel_timer(StateData#state.t203_ref),
 			{next_state, awaiting_establishment, nr_error_recovery(StateData#state{t203_ref = undefined})}
 	end;
-% ref:  ETS 300 125 Figure B-7/Q.921 (10 of 10) 
-multiple_frame_established('ACKNOWLEDGE PENDING', StateData) 
-		when StateData#state.acknowledge_pending == true ->
-	% Acknowledge pending? (yes)
-	case StateData#state.role of
-		network -> CR = 0;
-		user -> CR = 1
-	end,
-	% F=0
-	RR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
-			2#0000000:7, 1:1, (StateData#state.'V(R)'):7, 0:1>>,
-	% TX RR
-	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RR}),
-	% Clear acknowledge pending
-	NewStateData = StateData#state{acknowledge_pending = false},
-	{next_state, multiple_frame_established, NewStateData};
-multiple_frame_established('ACKNOWLEDGE PENDING', StateData) ->
-	% Acknowledge pending? (no)
-	{next_state, multiple_frame_established, StateData};
 %% ref:  ETS 300 125 Figure B-9/Q.921 (1 of 5) 
 multiple_frame_established({'DL', 'UNIT DATA', request, Data}, StateData) when is_binary(Data) ->
 	case StateData#state.role of
@@ -1195,6 +1184,8 @@ timer_recovery({'DL', 'DATA', request, Data}, StateData) when is_binary(Data) ->
 	% Put in I queue
 	NewStateData = StateData#state{i_queue = StateData#state.i_queue ++ [Data]},
 	{next_state, timer_recovery, NewStateData};
+timer_recovery('CLEAR PEER RECEIVER BUSY', StateData) ->
+	{next_state, timer_recovery, StateData};
 % ref:  ETS 300 125 Figure B-8/Q.921 (2 of 9) 
 timer_recovery(t200_expiry, StateData) 
 		when StateData#state.rc == StateData#state.n200 ->
@@ -1370,7 +1361,13 @@ timer_recovery({'PH', 'DATA', indication,
 		StateData#state.role == network, CR == 0, Command == 2#0000100;   % Network side Command (REJ) 
 		StateData#state.role == user, CR == 1, Command == 2#0000100 ->    % User side Command (REJ)
 	% Clear peer receiver busy
-	NextStateData = StateData#state{peer_receiver_busy = false},
+	case StateData#state.peer_receiver_busy of
+		true ->
+			NextStateData = StateData#state{peer_receiver_busy = false},
+			gen_fsm:send_event(self(), 'CLEAR PEER RECEIVER BUSY');
+		_ ->
+			NextStateData = StateData
+	end,
 	% P=1?
 	NewStateData = case P of
 		1 ->
@@ -1397,7 +1394,13 @@ timer_recovery({'PH', 'DATA', indication,
 		StateData#state.role == network, CR == 1, Response == 2#0000010;   % Network side Response (REJ) 
 		StateData#state.role == user, CR == 0, Response == 2#0000010 ->    % User side Response (REJ)
 	% Clear peer receiver busy
-	NextStateData = StateData#state{peer_receiver_busy = false},
+	case StateData#state.peer_receiver_busy of
+		true ->
+			NextStateData = StateData#state{peer_receiver_busy = false},
+			gen_fsm:send_event(self(), 'CLEAR PEER RECEIVER BUSY');
+		_ ->
+			NextStateData = StateData
+	end,
 	% V(A)<=N(R)<=V(S)?
 	case validate_nr(NextStateData#state.'V(A)', NR, NextStateData#state.'V(S)') of
 		true ->
@@ -1413,7 +1416,7 @@ timer_recovery({'PH', 'DATA', indication,
 					T203_ref = gen_fsm:send_event_after(NextStateData2#state.t203, t203_expiry),
 					NewStateData = NextStateData2#state{t200_ref = undefined, t203_ref = T203_ref},
 					% Invoke retransmission
-					{next_state, multiple_frame_established, transmit_iqueue(NewStateData#state{'V(S)' = NR})};
+					{next_state, multiple_frame_established, NewStateData};
 				0 ->
 					{next_state, timer_recovery, NextStateData2}
 			end;
@@ -1468,7 +1471,7 @@ timer_recovery({'PH', 'DATA', indication,
 					T200_ref = gen_fsm:send_event_after(NextStateData2#state.t200, t200_expiry),
 					NewStateData = NextStateData2#state{t200_ref = T200_ref},
 					% Invoke retransmission
-					{next_state, multiple_frame_established, transmit_iqueue(NewStateData#state{'V(S)' = NR})};
+					{next_state, multiple_frame_established, NewStateData};
 				0 ->
 					{next_state, timer_recovery, NextStateData2}
 			end;
@@ -1539,14 +1542,7 @@ timer_recovery({'PH', 'DATA', indication,
 			NextStateData#state{acknowledge_pending = false};
 		0 ->
 			% Acknowledge pending?
-			case NextStateData#state.acknowledge_pending of
-				true ->
-					NextStateData;
-				_ ->
-					% Acknowledge pending
-					gen_fsm:send_event(self(), 'ACKNOWLEDGE PENDING'),
-					NextStateData#state{acknowledge_pending = true}
-			end
+			acknowledge_pending(NextStateData)
 	end,
 	% ref:  ETS 300 125 Figure B-8/Q.921 (8 of 9) connector (4)
 	% V(A)<=N(R)<=V(S)?
@@ -1612,25 +1608,6 @@ timer_recovery({'PH', 'DATA', indication,
 			% N(R) Error recovery
 			{next_state, awaiting_establishment, nr_error_recovery(StateData)}
 	end;
-% ref:  ETS 300 125 Figure B-8/Q.921 (9 of 9)
-timer_recovery('ACKNOWLEDGE PENDING', StateData) 
-		when StateData#state.acknowledge_pending == true ->
-	% Acknowledge pending? (yes)
-	% Clear acknowledge pending
-	case StateData#state.role of
-		network -> CR = 0;
-		user -> CR = 1
-	end,
-	% F=0
-	RR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
-			2#0000000:7, 1:1, (StateData#state.'V(R)'):7, 0:1>>,
-	NewStateData = StateData#state{acknowledge_pending = false},
-	% TX RR
-	gen_fsm:send_event(NewStateData#state.mux, {'PH', 'DATA', request, RR}),
-	{next_state, timer_recovery, NewStateData};
-timer_recovery('ACKNOWLEDGE PENDING', StateData) ->
-	% Acknowledge pending? (no)
-	{next_state, timer_recovery, StateData};
 %% ref:  ETS 300 125 Figure B-9/Q.921 (1 of 5) 
 timer_recovery({'DL', 'UNIT DATA', request, Data}, StateData) when is_binary(Data) ->
 	case StateData#state.role of
@@ -1689,6 +1666,24 @@ code_change(_OldVsn, StateName, StateData, _Extra) ->
 %%---------------------------------------------------------------------
 %% internal functions
 %%---------------------------------------------------------------------
+
+%% ref: ETS 300 125 Figure B79/Q.921 (10 of 10)
+acknowledge_pending(StateData) when StateData#state.acknowledge_pending == true ->
+	% Acknowledge pending? (yes)
+	case StateData#state.role of
+		network -> CR = 0;
+		user -> CR = 1
+	end,
+	% F=0
+	RR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
+			2#0000000:7, 1:1, (StateData#state.'V(R)'):7, 0:1>>,
+	% TX RR
+	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RR}),
+	% Clear acknowledge pending
+	StateData#state{acknowledge_pending = false};
+acknowledge_pending(StateData) ->
+	% Acknowledge pending? (no)
+	StateData.
 
 %% ref: ETS 300 125 Figure B-9/Q.921 (4 of 5)
 nr_error_recovery(StateData) ->
@@ -1787,17 +1782,17 @@ acknowledge_iqueue(StateData, NR) ->
 	NewQueue = lists:nthtail(NumberOfAcknowledged, StateData#state.i_queue),
 	StateData#state{i_queue = NewQueue, 'V(A)' = NR}.
 
-transmit_iqueue(StateData) when StateData#state.peer_receiver_busy == 1;
+transmit_iqueue(StateData) when StateData#state.peer_receiver_busy == true;
 		StateData#state.'V(S)' == ((StateData#state.'V(A)' + StateData#state.k) rem 128) ->
 	StateData;
 transmit_iqueue(StateData) ->
 	NumberOfUnacknowledged = modulo_subtract(StateData#state.'V(S)', StateData#state.'V(A)'),
 	PendingTransmission = lists:nthtail(NumberOfUnacknowledged, StateData#state.i_queue),
 	NumberOfSendable = StateData#state.k - NumberOfUnacknowledged,
-	send_iframes(StateData, lists:sublist(PendingTransmission, NumberOfSendable)),
-	StateData#state{'V(S)' = modulo_add(StateData#state.'V(S)', NumberOfSendable)}.
+	send_iframes(StateData, lists:sublist(PendingTransmission, NumberOfSendable)).
 
-send_iframes(_, []) -> ok;
+send_iframes(StateData, []) ->
+	StateData;
 send_iframes(StateData, [Data|T]) ->
 	case StateData#state.role of
 		network -> CR = 1;
@@ -1808,7 +1803,8 @@ send_iframes(StateData, [Data|T]) ->
 			(StateData#state.'V(S)'):7, 0:1, (StateData#state.'V(R)'):7, 0:1, Data/binary>>,
 	% TX I
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, I}),
-	send_iframes(StateData, T).
+	NewStateData = StateData#state{'V(S)' = modulo_add(StateData#state.'V(S)', 1)},
+	send_iframes(NewStateData, T).
 
 transmit_uiqueue(StateData) ->
 	send_uiframes(StateData, StateData#state.ui_queue),
