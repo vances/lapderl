@@ -34,7 +34,7 @@
 %% MUX:  Multiplex Procedures (Layer 1)
 %% USAP: User Service Access Point (Layer 3)
 %% SAPI: Service Access Point Identifier
--record(state, {mux, sapi, usap).
+-record(state, {mux, sapi, role, usap}).
 
 init([MUX, SAPI, Options]) ->
 	Role = case lists:keysearch(role, 1, Options) of
@@ -46,14 +46,14 @@ init([MUX, SAPI, Options]) ->
 	{ok, await_bind, StateData}.
 
 %% ref:  ETS 300 125 Figure C-1/Q.921
-information_transfer({_, 'UNIT DATA', request, PDU}, StateData) when is_binary(Data) ->
+information_transfer({_, 'UNIT DATA', request, PDU}, StateData) when is_binary(PDU) ->
 	case StateData#state.role of
 		network -> CR = 1;
 		_ -> CR = 0
 	end,
 	% P=0
 	UI = <<0:1, CR:1, (StateData#state.sapi):6, 1:1, 127:7,
-			2#11:2, 2#00:2, 0:1, 2#000:3, Data/binary>>,
+			2#11:2, 2#00:2, 0:1, 2#000:3, PDU/binary>>,
 	% TX UI
 	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UI}),
 	{next_state, information_transfer, StateData};

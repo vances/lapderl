@@ -185,11 +185,11 @@ init([Module, Args]) ->
                 
 %% @hidden
 %% L1 -> L2 PDU (Broadcast Datalink Procedures) L2 management
-statename({'PH', 'DATA', indication, <<_:2, 63:6, _:1, 127:7, _/binary>>} = Event, State) ->
+statename({'PH', 'DATA', indication, <<63:6, _:2, 127:7, _:1,  _/binary>>} = Event, State) ->
 	gen_server:cast(State#lapd_mux_state.lme, Event),
 	{next_state, statename, State};
 %% L1 -> L2 PDU (Broadcast Datalink Procedures)
-statename({'PH', 'DATA', indication, <<_:2, SAPI:6, _:1, 127:7, _/binary>>} = Event, State) ->
+statename({'PH', 'DATA', indication, <<SAPI:6, _:2, 127:7, _:1,  _/binary>>} = Event, State) ->
 	case gb_trees:lookup(SAPI, State#lapd_mux_state.bcast_sapis) of
 		{value, DLE} ->
 			gen_fsm:send_event(DLE, Event),
@@ -198,7 +198,7 @@ statename({'PH', 'DATA', indication, <<_:2, SAPI:6, _:1, 127:7, _/binary>>} = Ev
 			{next_state, statename, State}
 	end;
 %% L1 -> L2 PDU (Point to Point Data Link Procedures)
-statename({'PH', 'DATA', indication, <<_:2, SAPI:6, _/binary>>} = Event, State) ->
+statename({'PH', 'DATA', indication, <<SAPI:6, _:2, _/binary>>} = Event, State) ->
 	case gb_trees:lookup(SAPI, State#lapd_mux_state.p2p_sapis) of
 		{value, DLE} ->
 			gen_fsm:send_event(DLE, Event),
