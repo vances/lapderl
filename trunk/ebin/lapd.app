@@ -1,7 +1,7 @@
 {application, lapd,
 	[{description,    "Link Access Procedures on the D-channel (LAPD)"},
 		{id,           "LAPD"},
-		{vsn,          "1.0"},
+		{vsn,          "1.1"},
 		{modules,      [lapd, lapd_sup, lapd_sap_sup, lapd_ce_sup,
 		                     lapd_lme_server, lapd_cme_fsm,
 		                     lapd_dle_p2p_fsm, lapd_dle_bcast_fsm,

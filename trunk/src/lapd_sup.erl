@@ -38,7 +38,7 @@
 %%%
 %%% @doc Top level supervisor of the LAPD application.
 %%%
-%%% @hidden
+%%% @private
          
 -module(lapd_sup).
 -copyright('Copyright (c) 2004,2005 Motivity Telecom Inc.').
