@@ -113,7 +113,7 @@ handle_cast(Request, State) ->
 	error_logger:info_report([{module, ?MODULE}, {line, ?LINE}, {message, Request}]),
 	{noreply, State}.
 	
-handle_info({'EXIT', Pid, Reason}, State) ->
+handle_info({'EXIT', Pid, _Reason}, State) ->
 	SapRec = sap_search({dle, Pid}, State#state.saps),
 	NewState = State#state{saps = sap_delete(SapRec, State#state.saps)},
 	{noreply, NewState};
