@@ -1267,7 +1267,7 @@ timer_recovery({'PH', 'DATA', indication,
 	cancel_timer(NewStateData#state.t200_ref),
 	T203_ref = gen_fsm:send_event_after(NewStateData#state.t203, t203_expiry),
 	% V(S)=0, V(A)=0, V(R)=0
-	{next_state, multiple_frame_estabslihed, NewStateData#state{t200_ref = undefined,
+	{next_state, multiple_frame_established, NewStateData#state{t200_ref = undefined,
 			t203_ref = T203_ref, 'V(S)' = 0, 'V(A)' = 0, 'V(R)' = 0}};
 timer_recovery({'PH', 'DATA', indication,
 		<<SAPI:6, CR:1, 0:1, TEI:7, 1:1,   % Address
