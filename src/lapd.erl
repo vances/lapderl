@@ -30,29 +30,52 @@
 -export([bind/3]).
 
 
+%% @type lapd_options(). LAPD layer options
+%% 	<p>A list of one or more of the following tuples.</p>
+%% 	<dl>
+%%			<dt><tt>{role, Role}</tt></dt><dd><tt>user</tt> |
+%% 				<tt>network</tt> default is <tt>user</tt></dd>
+%%			<dt><tt>{k, Value}</tt></dt><dd><tt>integer()</tt></dd>
+%%			<dt><tt>{n200, Value}</tt></dt><dd><tt>integer()</tt></dd>
+%%			<dt><tt>{n201, Value}</tt></dt><dd><tt>integer()</tt></dd>
+%%			<dt><tt>{n202, Value}</tt></dt><dd><tt>integer()</tt></dd>
+%%			<dt><tt>{t200, Value}</tt></dt><dd><tt>integer()</tt></dd>
+%%			<dt><tt>{t201, Value}</tt></dt><dd><tt>integer()</tt></dd>
+%%			<dt><tt>{t202, Value}</tt></dt><dd><tt>integer()</tt></dd>
+%%			<dt><tt>{t203, Value}</tt></dt><dd><tt>integer()</tt></dd>
+%% 	</dl>
+%% @end
+
 %%----------------------------------------------------------------------
 %%  The API functions
 %%----------------------------------------------------------------------
 
 %% @spec (Module::atom(), Args::term(), Options::term()) -> Result
+%% 	Options = [lapd_options() | GenFsmOptions]
+%% 	GenFsmOptions = [tuple()]
 %% 	Result = {ok, Sup} | {error, Reason}
 %% 	Sup = pid()
 %%		Reason = term()
 %%
 %% @doc Start a new LAPD layer.
-%% 	<p>Starts a supervision tree for the new LAPD layer as well as a
-%% 	layer management entity process and a multiplexer process.</p>
+%% 	<p>This function creates a supervision tree for the new LAPD 
+%% 	layer.  A layer management entity (LME) process and a multiplexer 
+%% 	process are started along with a broadcast data link entity
+%% 	(SAPI 63, TEI 127) for use by the LME.</p>
 %%
 %% 	<p><tt>Module</tt> is the name of a <a href="lapd_mux_fsm.html">
 %% 	<tt>lapd_mux_fsm</tt></a> behaviour callback module which will
 %% 	provide the layer 1 adaptation.</p>
 %%
-%% 	<p><tt>Args</tt> and <tt>Options</tt> have meaning only to the
-%% 	callback module but presumably <tt>Args</tt> would identify the
-%% 	specific layer 1 service access point for this LAPD layer.</p>
+%% 	<p><tt>Args</tt> has meaning only to the callback module but 
+%% 	presumably would identify the specific layer 1 service access 
+%% 	point for this LAPD layer.</p>
+%%
+%% 	<p><tt>Options</tt> may include lapd_options() and gen_fsm
+%% 	options passed to the layer 1 adaptation callback module.</p>
 %%
 %% 	<p>The callback module will be started with:<br/>
-%% 		<tt>gen_fsm:start_link(Module, Args, Options)</tt>
+%% 		<tt>gen_fsm:start_link(Module, Args, GenFsmOptions)</tt>
 %% 	</p>
 %%
 %% 	<p>Returns <tt>{ok, Sup}</tt> or <tt>{error, Reason}</tt>.  This
@@ -66,9 +89,7 @@ start_link(Module, Args, Options) ->
 			Children = supervisor:which_children(Sup),
 			{value, {lme, LME, _, _}} = lists:keysearch(lme, 1, Children),
 			{value, {mux, MUX, _, _}} = lists:keysearch(mux, 1, Children),
-			gen_server:cast(LME, {mux, MUX}),
-			gen_fsm:send_all_state_event(MUX, {lme, LME}),
-			gen_fsm:send_event(MUX, {'PH', 'ACTIVATE', request, undefined}),
+			gen_server:call(LME, {activate, MUX}),
 			{ok, Sup};
 		{error, Reason} ->
 			{error, Reason}
@@ -89,12 +110,10 @@ stop(Sup) ->
 	exit(Sup, shutdown).
 
 
-%% @spec (Sup::pid(), SAPI::integer(), TEI::integer(), Options::option_list()) -> {LME, CME, DLE}
+%% @spec (Sup::pid(), SAPI::integer(), TEI::integer(), Options::lapd_options()) -> {LME, CME, DLE}
 %% 	LME = pid()
 %% 	CME = pid()
 %% 	DLE = pid()
-%%
-%% @type option_list() = [term()].
 %%
 %% @doc Open a LAPD service access point.
 %% 	<p>Creates a new data link entity (DLE) process.</p>
@@ -121,13 +140,6 @@ stop(Sup) ->
 %% 	If the group TEI value <tt>127</tt> is specified
 %% 	a broadcast DLE will be started, otherwise a point-to-point DLE
 %% 	and CME are started.</p>
-%%
-%% 	<p>Possible options are:</p>
-%% 	<dl>
-%% 		<dt><tt>{role, Role}</tt></dt> <dd><tt>Role</tt> may be either
-%% 				<tt>user</tt> or <tt>network</tt>.
-%% 				Default is <tt>user</tt>.</dd>
-%% 	</dl>
 %%
 %% 	<p>Returns <tt>{LME, CME, DLE}</tt> where <tt>LME</tt> is the pid
 %% 	of the layer management entity which was created by a previous call 

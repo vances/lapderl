@@ -19,7 +19,7 @@
 %%% 	<p>The pupose of the multiplex procedures are to distribute frames
 %%% 	received from layer 1 to the correct data link entity (DLE).  The 
 %%% 	<tt>lapd_mux_fsm</tt> behaviour module handles this distribution
-%%% 	function by maintaining a table of SAPIs for point-to-point and
+%%% 	function by maintaining a table of DLCIs for point-to-point and
 %%% 	broadcast DLEs which stores those pids.  The <tt>lapd_mux_fsm</tt>
 %%% 	behaviour module will handle L1 &lt;- L2 primitives.  The callback
 %%% 	module must convert the implementation specific layer 1 API to the 
@@ -91,7 +91,7 @@ behaviour_info(callbacks) ->
 behaviour_info(Other) -> 
 	gen_fsm:behaviour_info(Other).
 
--record(lapd_mux_state, {module, statename, lme, p2p_sapis, bcast_sapis, statedata}).
+-record(lapd_mux_state, {module, statename, lme, endpoints, statedata}).
 
 
 %%----------------------------------------------------------------------
@@ -165,15 +165,11 @@ init([Module, Args]) ->
 	case Module:init(Args) of
 		{ok, StateName, StateData} ->
 			State = #lapd_mux_state{module = Module, statename = StateName, 
-					p2p_sapis = gb_trees:empty(),
-					bcast_sapis = gb_trees:empty(),
-					statedata = StateData},
+					endpoints = gb_trees:empty(), statedata = StateData},
 			{ok, statename, State};
 		{ok, StateName, StateData, Timeout} ->
 			State = #lapd_mux_state{module = Module, statename = StateName, 
-					p2p_sapis = gb_trees:empty(),
-					bcast_sapis = gb_trees:empty(),
-					statedata = StateData},
+					endpoints = gb_trees:empty(), statedata = StateData},
 			{ok, statename, State, Timeout};
 		{stop, Reason} ->
 			{stop, Reason};
@@ -184,22 +180,15 @@ init([Module, Args]) ->
 	end.
                 
 %% @hidden
-%% L1 -> L2 PDU (Broadcast Datalink Procedures) L2 management
-statename({'PH', 'DATA', indication, <<63:6, _:2, 127:7, _:1,  _/binary>>} = Event, State) ->
-	gen_server:cast(State#lapd_mux_state.lme, Event),
+%% L1 -> M PDU L2 management
+statename({'PH', 'DATA', indication, <<SAPI:6, _:2, TEI:7, _:1,  _/binary>>} = Event, State) 
+		when SAPI == 63, TEI == 127 ->
+	{value, LME} = gb_trees:lookup({SAPI, TEI}, State#lapd_mux_state.endpoints),
+	gen_server:cast(LME, Event),
 	{next_state, statename, State};
-%% L1 -> L2 PDU (Broadcast Datalink Procedures)
-statename({'PH', 'DATA', indication, <<SAPI:6, _:2, 127:7, _:1,  _/binary>>} = Event, State) ->
-	case gb_trees:lookup(SAPI, State#lapd_mux_state.bcast_sapis) of
-		{value, DLE} ->
-			gen_fsm:send_event(DLE, Event),
-			{next_state, statename, State};
-		none ->
-			{next_state, statename, State}
-	end;
-%% L1 -> L2 PDU (Point to Point Data Link Procedures)
-statename({'PH', 'DATA', indication, <<SAPI:6, _:2, _/binary>>} = Event, State) ->
-	case gb_trees:lookup(SAPI, State#lapd_mux_state.p2p_sapis) of
+%% L1 -> L2 PDU 
+statename({'PH', 'DATA', indication, <<SAPI:6, _:2, TEI:7, _:1, _/binary>>} = Event, State) ->
+	case gb_trees:lookup({SAPI, TEI}, State#lapd_mux_state.endpoints) of
 		{value, DLE} ->
 			gen_fsm:send_event(DLE, Event),
 			{next_state, statename, State};
@@ -251,29 +240,15 @@ statename(Event, From, State) ->
 	end.
 
 %% @hidden
-%% post initialization assignment of LME pid
-handle_event({lme, LME}, statename, State) ->
-	NewState = State#lapd_mux_state{lme = LME},
+%% data link connection endpoint assigned
+handle_event({open, {SAPI, TEI, DLE}}, statename, State) ->
+	NewEndPoints = gb_trees:insert({SAPI, TEI}, DLE, State#lapd_mux_state.endpoints),
+	NewState = State#lapd_mux_state{endpoints = NewEndPoints},
 	{next_state, statename, NewState};
-%% point-to-point sapi opened
-handle_event({open, {p2p, SAPI, DLE}}, statename, State) ->
-	NewSapis = gb_trees:insert(SAPI, DLE, State#lapd_mux_state.p2p_sapis),
-	NewState = State#lapd_mux_state{p2p_sapis = NewSapis},
-	{next_state, statename, NewState};
-%% broadcast sapi opened
-handle_event({open, {bcast, SAPI, DLE}}, statename, State) ->
-	NewSapis = gb_trees:insert(SAPI, DLE, State#lapd_mux_state.bcast_sapis),
-	NewState = State#lapd_mux_state{bcast_sapis = NewSapis},
-	{next_state, statename, NewState};
-%% point-to-point sapi closed
-handle_event({close, {p2p, SAPI, _DLE}}, statename, State) ->
-	NewSapis = gb_trees:delete_any(SAPI, State#lapd_mux_state.p2p_sapis),
-	NewState = State#lapd_mux_state{p2p_sapis = NewSapis},
-	{next_state, statename, NewState};
-%% broadcast sapi closed
-handle_event({close, {broadcast, SAPI, _DLE}}, statename, State) ->
-	NewSapis = gb_trees:delete_any(SAPI, State#lapd_mux_state.bcast_sapis),
-	NewState = State#lapd_mux_state{bcast_sapis = NewSapis},
+%% data link connection endpoint closed
+handle_event({close, {SAPI, TEI, _DLE}}, statename, State) ->
+	NewEndPoints = gb_trees:delete_any({SAPI, TEI}, State#lapd_mux_state.endpoints),
+	NewState = State#lapd_mux_state{endpoints = NewEndPoints},
 	{next_state, statename, NewState};
 handle_event(Event, statename, State) ->
 	Module = State#lapd_mux_state.module,

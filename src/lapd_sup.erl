@@ -22,10 +22,34 @@
 -export([init/1]).
 
 init([MUXCallBack, Args, Options]) ->
-	LMEStartFunc = {gen_server, start_link, [lapd_lme_server, [], []]},
+	{LMEOptions, MUXOptions} = split_options(Options),
+	LMEStartFunc = {gen_server, start_link, [lapd_lme_server, LMEOptions, []]},
 	LMEChildSpec = {lme, LMEStartFunc, permanent, 4000, worker, [lapd_lme_server]},
-	MUXStartFunc = {lapd_mux_fsm, start_link, [MUXCallBack, Args, Options]},
+	MUXStartFunc = {lapd_mux_fsm, start_link, [MUXCallBack, Args, MUXOptions]},
 	MUXChildSpec = {mux, MUXStartFunc, permanent, 4000, worker, [lapd_mux_fsm, MUXCallBack]},
 	SAPStartFunc = {supervisor, start_link, [lapd_sap_sup, []]},
 	SAPChildSpec = {sap, SAPStartFunc, permanent, infinity, supervisor, [lapd_sap_sup]},
 	{ok, {{one_for_one, 10, 60}, [LMEChildSpec, MUXChildSpec, SAPChildSpec]}}.
+
+%% (Options::list()) -> Result
+%% 	Result = {LapdOptions, MuxOptions}
+%% 	LapdOptions = [tuple()]
+%% 	MuxOptions  = [tuple()]
+%%
+%% @doc Seperate lapd options from callback (gen_fsm) options.
+%% @hidden
+%%
+split_options(Options) ->
+	LapdDefaults = [{k,7}, {n200,3}, {n201,260}, {n202,3}, {role,user},
+ 			{t200,1000}, {t201,1000}, {t202,2000}, {t203,10000}], % keep sorted!
+	split_options(Options, LapdDefaults, []).
+split_options(Options, [{Key, Default}|T], Acc) ->
+	case lists:keysearch(Key, 1, Options) of
+		{value, {Key, NewValue}} ->
+			split_options(lists:keydelete(Key, 1, Options), T, Acc ++ [{Key, NewValue}]);
+		false ->
+			split_options(Options, T, Acc ++ [{Key, Default}])
+	end;
+split_options(Options, [], Acc) ->
+	{Acc, Options}.
+	

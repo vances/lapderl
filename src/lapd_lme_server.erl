@@ -28,20 +28,21 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 		terminate/2, code_change/3]).
 
--record(state, {sapsup, mux, saps = []}).
+-record(state, {sapsup, mux, bdle, options, saps = []}).
 -record(sap, {dle, cme, sapi, tei, usap}).
 
-init([]) ->
+init(Options) ->
 	process_flag(trap_exit, true),
-	{ok, #state{}}.
+	{ok, #state{options = Options}}.
 
 %% handle a lapd:open/4 call for a broadcast DLE
 handle_call({'SMAP', 'OPEN', request, {SapSup, SAPI, 127, Options}}, {Pid, _Tag}, State) ->
-	case supervisor:start_child(SapSup, [[State#state.mux, SAPI, Options]]) of
+	EndPointOptions = lists:keymerge(1, Options, State#state.options),
+	case supervisor:start_child(SapSup, [[State#state.mux, SAPI, EndPointOptions]]) of
 		{ok, CeSup} ->
 			Children = supervisor:which_children(CeSup),
 			{value, {dle, DLE, _, _}} = lists:keysearch(dle, 1, Children),
-			gen_fsm:send_event(State#state.mux, {'MDL', 'OPEN', request, {bcast, SAPI, DLE}}),
+			gen_fsm:send_event(State#state.mux, {open, {SAPI, 127, DLE}}),
 			NewState = State#state{sapsup = SapSup},
 			{reply, {self(), undefined, DLE}, NewState};
 		{error, Reason} ->
@@ -50,14 +51,15 @@ handle_call({'SMAP', 'OPEN', request, {SapSup, SAPI, 127, Options}}, {Pid, _Tag}
 	end;
 %% handle a lapd:open/4 call for a point-to-point DLE
 handle_call({'SMAP', 'OPEN', request, {SapSup, SAPI, TEI, Options}}, {Pid, _Tag}, State) ->
-	case supervisor:start_child(SapSup, [[State#state.mux, SAPI, self(), Options]]) of
+	EndPointOptions = lists:keymerge(1, Options, State#state.options),
+	case supervisor:start_child(SapSup, [[State#state.mux, SAPI, self(), EndPointOptions]]) of
 		{ok, CeSup} ->
 			Children = supervisor:which_children(CeSup),
 			{value, {cme, CME, _, _}} = lists:keysearch(cme, 1, Children),
 			{value, {dle, DLE, _, _}} = lists:keysearch(dle, 1, Children),
 			gen_fsm:send_event(CME, {dle, DLE}),
 			gen_fsm:send_event(DLE, {cme, CME}),
-			gen_fsm:send_all_state_event(State#state.mux, {open, {p2p, SAPI, DLE}}),
+			gen_fsm:send_all_state_event(State#state.mux, {open, {SAPI, TEI, DLE}}),
 			case TEI of
 				X when is_integer(X), X >= 0, X =< 63 ->
 					gen_fsm:send_event(CME, {'MDL', 'ASSIGN', request, {TEI, DLE}}),
@@ -86,13 +88,27 @@ handle_call({'SMAP', 'BIND', request, {DLE, USAP}}, _From, State) ->
 			gen_fsm:send_all_state_event(DLE, {'MDL', 'BIND', request, USAP}),
 			{reply, ok, State}
 	end;
+%% complete initialization of the lapd layer
+handle_call({activate, MUX}, {Pid, _Tag}, State) ->
+	{value, {role, Role}} = lists:keysearch(role, 1, State#state.options),
+	Options = [{role, Role}],
+	case supervisor:start_child(State#state.sapsup, [[State#state.mux, 63, Options]]) of
+		{ok, CeSup} ->
+			Children = supervisor:which_children(CeSup),
+			{value, {dle, BDLE, _, _}} = lists:keysearch(dle, 1, Children),
+			gen_fsm:send_event(MUX, {open, {63, 127, BDLE}}),
+			gen_fsm:send_event(MUX, {'PH', 'ACTIVATE', request, undefined}),
+			NewState = State#state{mux = MUX, bdle = BDLE},
+			{reply, ok, NewState};
+		{error, Reason} ->
+			exit(Pid, Reason),
+			{stop, Reason, State}
+	end;
 handle_call(Request, _From, State) ->
 	error_logger:info_report([{module, ?MODULE}, {line, ?LINE},
 			{message, Request}, {from, from}]),
 	{noreply, State}.
 
-handle_cast({mux, MUX}, State) ->
-	{noreply, State#state{mux = MUX}};
 handle_cast(Request, State) ->
 	error_logger:info_report([{module, ?MODULE}, {line, ?LINE}, {message, Request}]),
 	{noreply, State}.

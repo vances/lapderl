@@ -48,8 +48,8 @@
 		%		 - variables and sequence numbers
 		'V(S)', 'V(A)', 'V(R)',
 		% ref: ETS 300 125 5.9 List of system parameters
-		n200 = 3, n201 = 260, n202 = 3, k = 7,
-		t200 = 1000, t201 = 1000, t202 = 2000, t203 = 10000,
+		n200, n201, n202, k, t200, t201, t202, t203,
+		% timer references
 		t200_ref, t201_ref, t202_ref, t203_ref,
 		% counters
 		rc = 0,
@@ -58,12 +58,20 @@
 		peer_receiver_busy, reject_exception}).
 
 init([PhySAP, SAPI, LME, Options]) ->
-	Role = case lists:keysearch(role, 1, Options) of
-		{value, network} -> network;
-		_ -> user
-	end,
 	process_flag(trap_exit, true),
-	StateData = #state{mux = PhySAP, lme = LME, sapi = SAPI, role = Role},
+	{value, {k, K}} = lists:keysearch(k, 1, Options),
+	{value, {n200, N200}} = lists:keysearch(n200, 1, Options),
+	{value, {n201, N201}} = lists:keysearch(n201, 1, Options),
+	{value, {n202, N202}} = lists:keysearch(n202, 1, Options),
+	{value, {role, Role}} = lists:keysearch(role, 1, Options),
+	{value, {t200, T200}} = lists:keysearch(t200, 1, Options),
+	{value, {t201, T201}} = lists:keysearch(t201, 1, Options),
+	{value, {t202, T202}} = lists:keysearch(t202, 1, Options),
+	{value, {t203, T203}} = lists:keysearch(t203, 1, Options),
+	StateData = #state{mux = PhySAP, lme = LME, sapi = SAPI,
+			k = K, role = Role,
+			n200 = N200, n201 = N201, n202 = N202,
+			t200 = T200, t201 = T201, t202 = T202, t203 = T203},
 	{ok, await_cme, StateData}.
 
 await_cme({cme, CME}, StateData) ->
