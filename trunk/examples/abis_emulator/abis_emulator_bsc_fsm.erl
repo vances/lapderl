@@ -89,9 +89,9 @@ link_conection_established({'DL', 'RELEASE', indication, _}, StateData) ->
 link_conection_established(timeout, StateData) ->
 	case next_event(StateData) of
 		{bsc, _Timeout, i, PDU} ->
-			gen_fsm:send_event(StateData#state.sap, {'DL', 'DATA', indication, PDU});
+			gen_fsm:send_event(StateData#state.sap, {'DL', 'DATA', request, PDU});
 		{bsc, _Timeout, ui, PDU} ->
-			gen_fsm:send_event(StateData#state.sap, {'DL', 'UNIT DATA', indication, PDU})
+			gen_fsm:send_event(StateData#state.sap, {'DL', 'UNIT DATA', request, PDU})
 	end,
 	NewStateData = StateData#state{next = StateData#state.next + 1},
 	case next_event(NewStateData) of
