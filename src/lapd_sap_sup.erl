@@ -38,7 +38,7 @@
 %%%
 %%% @doc Supervisor for all the connection endpoints.
 %%%
-%%% @hidden
+%%% @private
          
 -module(lapd_sap_sup).
 -copyright('Copyright (c) 2004,2005 Motivity Telecom Inc.').

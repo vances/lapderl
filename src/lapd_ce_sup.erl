@@ -37,7 +37,8 @@
 %%% @author Vance Shipley <vances@motivity.ca>
 %%%
 %%% @doc Supervisor for all the connection endpoints.
-%%% @end
+%%%
+%%% @private
          
 -module(lapd_ce_sup).
 -copyright('Copyright (c) 2004,2005 Motivity Telecom Inc.').
