@@ -1,0 +1,89 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+	<title>LAPD Reference Manual</title>
+	<link rel="stylesheet" type="text/css" href="stylesheet.css">
+</head>
+<body bgcolor="white">
+	<h1>LAPD Application</h1>
+	<p>Copyright &#169; 2004 Motivity Telecom Inc.</p>
+	<p><b>Version:</b> 0.1</p>
+	<p><b>Authors:</b> Vance Shipley (<a href="mailto:vances@motivity.ca"><tt>vances@motivity.ca</tt></a>).</p>
+
+	<p>The LAPD application is an protocol stack implementation of the link access procedures for the D-channel.<p>
+
+	<h3>Supervision Tree</h3>
+	<img alt="diagram of supervision tree" src="supervision_tree.png">
+
+	<h3>Process Communication</h3>
+	<img alt="diagram of process communication" src="process_communication.png">
+
+	<h3>Primitives</h3>
+
+	<h4>L3 &#8596 L2</h4>
+	<p>The L3 &#8596 L2 primitives are exchanged between the LAPD service user (LAPD-user) and LAPD service access point (SAP).
+	The LAPD SAP is a data link entity (DLE) process.</p>
+
+	<h5>LAPD-user &#8594; DLE</h5>
+	<tt>{'DL', 'ESTABLISH', request, _}</tt><br>
+	<tt>{'DL', 'RELEASE', request, _}</tt><br>
+	<tt>{'DL', 'DATA', request, PDU}</tt><br>
+	<tt>{'DL', 'UNIT DATA', request, PDU}</tt><br>
+
+	<h5>LAPD-user &#8592; DLE</h5>
+	<tt>{'DL', 'ESTABLISH', confirm, _}</tt><br>
+	<tt>{'DL', 'ESTABLISH', indication, _}</tt><br>
+	<tt>{'DL', 'RELEASE', confirm, _}</tt><br>
+	<tt>{'DL', 'RELEASE', indication, _}</tt><br>
+	<tt>{'DL', 'DATA', indication, PDU}</tt><br>
+	<tt>{'DL', 'UNIT DATA', indication, PDU}</tt><br>
+
+	<h4>M &#8596; L2</h4>
+	<p>The M &#8596 L2 primitives are exchanged between the layer management entity (LME) and the DLE,
+	the LME and the CME, and the LME and L1 (through the multiplex procedure).</p>
+
+	<h5>LME &#8594; DLE</h5>
+	<tt>{'MDL', 'ASSIGN', request, {TEI, CES}}</tt><br>
+	<tt>{'MDL', 'ERROR', response, Reason}</tt><br>
+	<tt>{'MDL', 'REMOVE', request, {TEI, CES}}</tt><br>
+	<tt>{'MDL', 'BIND', request, {CME, _, USAP}}</tt> <sub>(implementation specific)</sub><br>
+
+	<h5>LME &#8592; DLE</h5>
+	<tt>{'MDL', 'ASSIGN', indication, {_, CES}}</tt><br>
+
+	<h5>LME &#8594; L1</h5>
+	<tt>{'MDL', 'UNIT DATA', request, PDU}</tt><br>
+
+	<h5>LME &#8592; L1</h5>
+	<tt>{'MDL', 'UNIT DATA', indication, PDU}</tt><br>
+
+	<h5>CME &#8594; DLE</h5>
+	<tt>{'MDL', 'SET BUSY', request, _}</tt> <sub>(not implemented)</sub><br>
+	<tt>{'MDL', 'CLEAR BUSY', request, _}</tt> <sub>(not implemented)</sub><br>
+	<tt>{'MDL', 'XID', request, PDU}</tt> <sub>(not implemented)</sub><br>
+	<tt>{'MDL', 'XID', response, PDU}</tt> <sub>(not implemented)</sub><br>
+
+	<h5>CME &#8592; DLE</h5>
+	<tt>{'MDL', 'XID', confirm, PDU}</tt> <sub>(not implemented)</sub><br>
+	<tt>{'MDL', 'XID', indication, PDU}</tt> <sub>(not implemented)</sub><br>
+
+	<h4>L2 &#8596; L1</h4>
+	<p>The L2 &#8596 L1 primitives are exchanged between the DLE and the physical layer SAP.
+	The physical layer (PHY) is not implemented in this application, it shoukld be provided by another
+	application (e.g. netaccess).</p>
+
+	<h5>DLE &#8594; PHY</h5>
+	<tt>{'PH', 'DATA', request, PDU}</tt><br>
+
+	<h5>DLE &#8592; PHY</h5>
+	<tt>{'PH', 'DATA', indication, PDU}</tt><br>
+	<tt>{'PH', 'ACTIVATE', indication, PDU}</tt><br>
+	<tt>{'PH', 'DEACTIVATE', indication, PDU}</tt><br>
+
+	<h4>M &#8596; L1</h4>
+	<tt>{'MPH', 'ACTIVATE', indication, PDU}</tt><sub>(not implemented)</sub><br>
+	<tt>{'MPH', 'DEACTIVATE', indication, PDU}</tt><sub>(not implemented)</sub><br>
+	<tt>{'MPH', 'INFORMATION', indication, PDU}</tt><sub>(not implemented)</sub><br>
+
+</body>
+</html>
