@@ -22,67 +22,94 @@
 		link_conection_established/2, awaiting_release/2]).
 -export([handle_event/3, handle_info/3, handle_sync_event/4, code_change/4]).
 
+-record(state, {sap, next}).
+
 init([LAPD, TEI]) ->
 	{LME, _CME, DLE} = lapd:open(LAPD, 0, TEI, [{role, network}]),
 	lapd:bind(LME, DLE, self()),
 	gen_fsm:send_event(DLE, {'DL', 'ESTABLISH', request, []}),
-	{ok, awaiting_establish, DLE}.
+	{ok, awaiting_establish, #state{sap = DLE, next = 0}}.
 
-link_connection_released({'DL', 'ESTABLISH', indication, _}, SAP) ->
-	{next_state, link_conection_established, SAP};
-link_connection_released({'DL', 'ESTABLISH', confirm, _}, SAP) ->
-	{next_state, link_conection_established, SAP};
-link_connection_released({'DL', 'UNIT DATA', indication, _}, SAP) ->
-	{next_state, link_connection_released, SAP};
-link_connection_released({'DL', 'RELEASE', indication, _}, SAP) ->
-	{next_state, link_connection_released, SAP};
-link_connection_released(Event, SAP) ->
+link_connection_released({'DL', 'ESTABLISH', indication, _}, StateData) ->
+	{next_state, link_conection_established, StateData};
+link_connection_released({'DL', 'ESTABLISH', confirm, _}, StateData) ->
+	{next_state, link_conection_established, StateData};
+link_connection_released({'DL', 'UNIT DATA', indication, _}, StateData) ->
+	{next_state, link_connection_released, StateData};
+link_connection_released({'DL', 'RELEASE', indication, _}, StateData) ->
+	{next_state, link_connection_released, StateData};
+link_connection_released(Event, StateData) ->
 	error_logger:error_report([{module, ?MODULE}, {event, Event},
 		{state, link_connection_released}]),
-	{next_state, link_connection_released, SAP}.
+	{next_state, link_connection_released, StateData}.
 
-awaiting_establish({'DL', 'ESTABLISH', confirm, _}, SAP) ->
-	{next_state, link_conection_established, SAP};
-awaiting_establish({'DL', 'RELEASE', indication, _}, SAP) ->
-	{next_state, link_conection_released, SAP};
-awaiting_establish({'DL', 'UNIT DATA', indication, _}, SAP) ->
-	{next_state, awaiting_establish, SAP};
-awaiting_establish({'DL', 'ESTABLISH', indication, _}, SAP) ->
-	{next_state, awaiting_establish, SAP};
-awaiting_establish(Event, SAP) ->
+awaiting_establish({'DL', 'ESTABLISH', confirm, _}, StateData) ->
+	case next_event(StateData) of
+		{bts, Timeout, _Type, _PDU} ->
+			{next_state, link_conection_established, StateData, Timeout};
+		_ ->
+			{next_state, link_conection_established, StateData};
+	end,
+awaiting_establish({'DL', 'RELEASE', indication, _}, StateData) ->
+	{next_state, link_conection_released, StateData};
+awaiting_establish({'DL', 'UNIT DATA', indication, _}, StateData) ->
+	{next_state, awaiting_establish, StateData};
+awaiting_establish({'DL', 'ESTABLISH', indication, _}, StateData) ->
+	{next_state, awaiting_establish, StateData};
+awaiting_establish(Event, StateData) ->
 	error_logger:error_report([{module, ?MODULE}, {event, Event},
 		{state, awaiting_establish}]),
-	{next_state, awaiting_establish, SAP}.
+	{next_state, awaiting_establish, StateData}.
 
-link_conection_established({'DL', 'DATA', indication, _}, SAP) ->
-	{next_state, link_connection_established, SAP};
-link_conection_established({'DL', 'UNIT DATA', indication, _}, SAP) ->
-	{next_state, link_connection_established, SAP};
-link_conection_established({'DL', 'ESTABLISH', indication, _}, SAP) ->
-	{next_state, link_connection_established, SAP};
-link_conection_established({'DL', 'ESTABLISH', confirm, _}, SAP) ->
-	{next_state, link_connection_established, SAP};
-link_conection_established({'DL', 'RELEASE', indication, _}, SAP) ->
-	{next_state, link_connection_released, SAP};
-link_conection_established(Event, SAP) ->
+link_conection_established({'DL', 'DATA', indication, PDU}, StateData) ->
+	{bsc, _, I, PDU} = next_event(StateData) 
+	NewStateData = StateData#state{next = StateData#state.next + 1},
+	case next_event(StateData) of
+		{bts, Timeout, _Type, _PDU} ->
+			{next_state, link_connection_established, NewStateData, Timeout};
+		{bsc, _, _Type, _PDU} ->
+	end;
+link_conection_established({'DL', 'UNIT DATA', indication, _}, StateData) ->
+	{next_state, link_connection_established, StateData};
+link_conection_established({'DL', 'ESTABLISH', indication, _}, StateData) ->
+	{next_state, link_connection_established, StateData};
+link_conection_established({'DL', 'ESTABLISH', confirm, _}, StateData) ->
+	{next_state, link_connection_established, StateData};
+link_conection_established({'DL', 'RELEASE', indication, _}, StateData) ->
+	{next_state, link_connection_released, StateData};
+link_conection_established(timeout, StateData) ->
+	case next_event(StateData) of
+		{bts, _Timeout, I, PDU} ->
+			gen_fsm:send_event(StateData#state.sap, {'DL', 'DATA', indication, PDU});
+		{bts, _Timeout, UI, PDU} ->
+			gen_fsm:send_event(StateData#state.sap, {'DL', 'UNIT DATA', indication, PDU});
+	end,
+	NewStateData = StateData#state{next = StateData#state.next + 1},
+	case next_event(StateData) of
+		{bts, Timeout, _Type, _PDU} ->
+			{next_state, link_conection_established, NewStateData, Timeout};
+		_ ->
+			{next_state, link_conection_established, NewStateData}
+	end;
+link_conection_established(Event, StateData) ->
 	error_logger:error_report([{module, ?MODULE}, {event, Event},
 		{state, link_connection_established}]),
-	{next_state, link_conection_established, SAP}.
+	{next_state, link_conection_established, StateData}.
 
-awaiting_release({'DL', 'RELEASE', confirm, _}, SAP) ->
-	{next_state, link_connection_released, SAP};
-awaiting_release({'DL', 'RELEASE', indication, _}, SAP) ->
-	{next_state, awaiting_release, SAP};
-awaiting_release({'DL', 'UNIT DATA', indication, _}, SAP) ->
-	{next_state, awaiting_release, SAP};
-awaiting_release({'DL', 'ESTABLISH', indication, _}, SAP) ->
-	{next_state, awaiting_release, SAP};
-awaiting_release({'DL', 'ESTABLISH', confirm, _}, SAP) ->
-	{next_state, awaiting_release, SAP};
-awaiting_release(Event, SAP) ->
+awaiting_release({'DL', 'RELEASE', confirm, _}, StateData) ->
+	{next_state, link_connection_released, StateData};
+awaiting_release({'DL', 'RELEASE', indication, _}, StateData) ->
+	{next_state, awaiting_release, StateData};
+awaiting_release({'DL', 'UNIT DATA', indication, _}, StateData) ->
+	{next_state, awaiting_release, StateData};
+awaiting_release({'DL', 'ESTABLISH', indication, _}, StateData) ->
+	{next_state, awaiting_release, StateData};
+awaiting_release({'DL', 'ESTABLISH', confirm, _}, StateData) ->
+	{next_state, awaiting_release, StateData};
+awaiting_release(Event, StateData) ->
 	error_logger:error_report([{module, ?MODULE}, {event, Event},
 		{state, awaiting_release}]),
-	{next_state, awaiting_release, SAP}.
+	{next_state, awaiting_release, StateData}.
 
 handle_event(_Event, StateName, StateData) ->
 	{next_state, StateName, StateData}.
