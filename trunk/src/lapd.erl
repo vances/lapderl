@@ -124,8 +124,8 @@ stop(Sup) ->
 %%
 %% 	<p>Possible options are:</p>
 %% 	<dl>
-%% 		<dt><tt>{role, Role}</tt></dt> <dd><tt>Role</tt> may be one of 
-%% 				<tt>user</tt>, <tt>network</tt> or <tt>symmetrical</tt>.
+%% 		<dt><tt>{role, Role}</tt></dt> <dd><tt>Role</tt> may be either
+%% 				<tt>user</tt> or <tt>network</tt>.
 %% 				Default is <tt>user</tt>.</dd>
 %% 	</dl>
 %%
