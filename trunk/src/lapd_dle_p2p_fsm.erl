@@ -1739,13 +1739,13 @@ transmit_enquiry(StateData) ->
 			RNR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7,
 					1:1, 2#0000010:7, 1:1, (StateData#state.'V(R)'):7, 1:1>>,
 			% TX RNR Command
-			gen_fsm:send_event(StateData#state.mux, RNR);
+			gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RNR});
 		_ ->
 			% P=1
 			RR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7,
 					1:1, 2#0000000:7, 1:1, (StateData#state.'V(R)'):7, 1:1>>,
 			% TX RR Command
-			gen_fsm:send_event(StateData#state.mux, RR)
+			gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RR})
 	end,
 	% Clear acknowledge pending
 	% Start T200
@@ -1765,13 +1765,13 @@ enquiry_response(StateData) ->
 			RNR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7,
 					1:1, 2#0000010:7, 1:1, (StateData#state.'V(R)'):7, 1:1>>,
 			% TX RNR Response
-			gen_fsm:send_event(StateData#state.mux, RNR);
+			gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RNR});
 		_ ->
 			% F=1
 			RR = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7,
 					1:1, 2#0000000:7, 1:1, (StateData#state.'V(R)'):7, 1:1>>,
 			% TX RR Response
-			gen_fsm:send_event(StateData#state.mux, RR)
+			gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, RR})
 	end,
 	% Clear acknowledge pending
 	StateData#state{acknowledge_pending = false}.
@@ -1805,7 +1805,7 @@ send_iframes(StateData, [Data|T]) ->
 	I = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
 			(StateData#state.'V(S)'):7, 0:1, (StateData#state.'V(R)'):7, 0:1, Data/binary>>,
 	% TX I
-	gen_fsm:send_event(StateData#state.mux, I),
+	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, I}),
 	send_iframes(StateData, T).
 
 transmit_uiqueue(StateData) ->
@@ -1821,7 +1821,7 @@ send_uiframes(StateData, [Data|T]) ->
 	UI = <<(StateData#state.sapi):6, CR:1, 0:1, (StateData#state.tei):7, 1:1,
 			2#000:3, 0:1, 2#00:2, 2#11:2, Data/binary>>,
 	% TX UI
-	gen_fsm:send_event(StateData#state.mux, UI),
+	gen_fsm:send_event(StateData#state.mux, {'PH', 'DATA', request, UI}),
 	send_uiframes(StateData, T).
 
 modulo_subtract(X, Y) when X < Y -> ((X + 128) - Y) rem 128;
