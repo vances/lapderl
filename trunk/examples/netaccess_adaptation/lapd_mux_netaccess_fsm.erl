@@ -1,3 +1,4 @@
+%%% $Id$
 %%%---------------------------------------------------------------------
 %%% @copyright 2004,2005 Motivity Telecom Inc.
 %%% @end
@@ -44,13 +45,11 @@
 %%% @reference <a href="http://www.motivity.ca/netaccess">The netaccess User's Guide</a>
 %%%
 %%% @private
-         
--author('vances@motivity.ca').
-
-         
+%%%
 -module(lapd_mux_netaccess_fsm).
 -copyright('Copyright (c) 2004,2005 Motivity Telecom Inc.').
 -author('vances@motivity.ca').
+-vsn('$Revision$').
 -behaviour(lapd_mux_fsm).
 
 -include("iisdn.hrl").

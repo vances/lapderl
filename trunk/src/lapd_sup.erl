@@ -1,3 +1,4 @@
+%%% $Id$
 %%%---------------------------------------------------------------------
 %%% @copyright 2004,2005 Motivity Telecom Inc.
 %%% @end
@@ -39,10 +40,11 @@
 %%% @doc Top level supervisor of the LAPD application.
 %%%
 %%% @private
-         
+%%%
 -module(lapd_sup).
 -copyright('Copyright (c) 2004,2005 Motivity Telecom Inc.').
 -author('vances@motivity.ca').
+-vsn('$Revision$').
 -behaviour(supervisor).
 -export([init/1]).
 

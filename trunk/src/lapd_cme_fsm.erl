@@ -1,3 +1,4 @@
+%%% $Id$
 %%%---------------------------------------------------------------------
 %%% @copyright 2004,2005 Motivity Telecom Inc.
 %%% @end
@@ -49,10 +50,11 @@
 %%% 	Application of CCITT Recommendations Q.920/I.440 and Q.921/I.441 
 %%%
 %%% @private
-         
+%%%
 -module(lapd_cme_fsm).
 -copyright('Copyright (c) 2004,2005 Motivity Telecom Inc.').
 -author('vances@motivity.ca').
+-vsn('$Revision$').
 -behaviour(gen_fsm).
 
 -export([init/1, terminate/3]).

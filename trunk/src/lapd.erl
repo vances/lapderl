@@ -1,3 +1,4 @@
+%%% $Id$
 %%%---------------------------------------------------------------------
 %%% @copyright 2004,2005 Motivity Telecom Inc. 2004
 %%% @end
@@ -44,10 +45,10 @@
 %%%
 %%% @reference <a href="index.html">The LAPD User's Guide</a>
 %%%
-         
 -module(lapd).
 -copyright('Copyright (c) 2004,2005 Motivity Telecom Inc.').
 -author('vances@motivity.ca').
+-vsn('$Revision$').
 
 %% our published API functions
 -export([start_link/3, stop/1]).

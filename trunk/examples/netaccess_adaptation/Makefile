@@ -3,7 +3,7 @@ ERLC = erlc -pa ../../ebin
 ERLCFLAGS = -W -v
 DEBUGFLAGS = +debug_info
 
-INCLUDES = -I ../../../netaccess_erldrv/include
+INCLUDES = -I $(ERL_TOP)/lib/netaccess-1.1/include
 
 %.beam:%.erl
 	${ERLC} ${ERLCFLAGS} ${INCLUDES} ${DEBUGFLAGS} $<

@@ -1,3 +1,4 @@
+%%% $Id$
 %%%---------------------------------------------------------------------
 %%% @copyright 2004,2005 Motivity Telecom Inc.
 %%% @end
@@ -39,10 +40,11 @@
 %%% @doc Top level supervisor for the abis_emulator application.
 %%%
 %%% @private
-
+%%%
 -module(abis_emulator_sup).
 -copyright('Copyright (c) 2004,2005 Motivity Telecom Inc.').
 -author('vances@motivity.ca').
+-vsn('$Revision$').
 -behaviour(supervisor).
 -export([init/1]).
 
