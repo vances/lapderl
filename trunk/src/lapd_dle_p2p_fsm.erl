@@ -1661,6 +1661,10 @@ handle_event(_Event, StateName, StateData) ->
 handle_sync_event(_Event, _From, StateName, StateData) ->
 	{next_state, StateName, StateData}.
 	
+%% accept raw messages from the LAPD-User
+handle_info({'DL', _, _, _} = Primitive, StateName, StateData) ->
+	?MODULE:StateName(Primitive, StateData),
+	{next_state, StateName, StateData};
 handle_info(_Info, StateName, StateData) ->
 	{next_state, StateName, StateData}.
 
