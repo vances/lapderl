@@ -1200,7 +1200,7 @@ timer_recovery(t200_expiry, StateData)
 	% Establish data link
 	NewStateData = establish_data_link(StateData),
 	% Clear layer 3 initiated
-	{next_state, awaiting_establishement, NewStateData#state{layer3_initiated = false}};
+	{next_state, awaiting_establishment, NewStateData#state{layer3_initiated = false}};
 timer_recovery(t200_expiry, StateData) ->
 	% RC=N200? (yes)
 	% V(S)=V(A)?
