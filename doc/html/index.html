@@ -10,13 +10,52 @@
 	<p><b>Version:</b> 0.1</p>
 	<p><b>Authors:</b> Vance Shipley (<a href="mailto:vances@motivity.ca"><tt>vances@motivity.ca</tt></a>).</p>
 
-	<p>The LAPD application is an protocol stack implementation of the link access procedures for the D-channel.<p>
+	<p>The LAPD application is a protocol stack implementation of the link access procedures for the D-channel
+	as specified in <cite>ITU-T Q.921 ISDN user-network interface - Data link layer specification</cite>.<p>
 
-	<h3>Supervision Tree</h3>
-	<img alt="diagram of supervision tree" src="supervision_tree.png">
+	<h3>Application</h3>
+	<p>The LAPD protocol is most commonly used as layer 2 in ISDN customer access signaling.  Other notable uses
+	include the Abis interface of GSM.</p>
+
+	<h3>Requirements</h3>
+	<p>This application includes only the layer 2 procedures and must be used with a seperate application
+	providing the layer 1 interface.  It is expected that layer 1 will provide HDLC formatting including flag
+	sequences and frame check sequences.  The <b>netaccess</b> application from 
+	<a href="http://www.motivity.ca">Motivity Telecom</a> is one such implementation.</p>
 
 	<h3>Process Communication</h3>
-	<img alt="diagram of process communication" src="process_communication.png">
+	<p>A number of processes interact to provide the LAPD service. 
+	<a href="#figure_1-1">Figure 1-1</a> depicts a moderately complex configuration with two LAPD-user processes.
+	One LAPD-user has two service access point identifiers (SAPI) active while the other has only one.  This figure 
+	represents one physical service access point (SAP) only.  A seperate LAPD layer is created for each physical SAP.
+	Each LAPD layer has one layer management entity (LME) process.  Each SAPI has one data link entity (DLE) process
+	and one connection management entity (CME) process.</p>
+	<p>The DLE processes function as the service access points for layer 3.  The LAPD service users exchange primitives 
+	in the form of Erlang messages with the DLE processes.  The pid of a DLE process functions as the SAP for a 
+	particular SAPI on a specific physical SAP.<p>
+
+	Figure 1-1<br>
+	<img alt="diagram of process communication" name="figure_1-1" src="process_communication.png"><br>
+
+	<p>A system management application process (SMAP) configures the LAPD service by exchanging primitives with
+	the LME and CME processes.  These interfaces are not the subject of standardization and the primitives used
+	here are implementation specific.  The <a href="lapd.html"><tt>lapd</tt></a> module provides the application 
+	programming interface which the SMAP (conceptually) uses to maintain the service configuration.</p>
+
+	<h3>Supervision Tree</h3>
+	<p>The processes which make up an instance of the LAPD service layer are all instantiated within a seperate
+	supervision tree.  It is expected that the top level supervisor of each layer will be placed under the
+	supervision tree of the including application.  <a href="#figure_1-2">Figure 1-2</a> shows the structure of
+	the supervision tree.</p>
+
+	Figure 1-2<br>
+	<img alt="diagram of supervision tree" src="supervision_tree.png"><br>
+
+	<p>When <a href="lapd.html#start_link-1"><tt>lapd:start_link/1</tt></a> is called a top level supervisor process
+	is created with two child processes; the LME and another supervisor which initially has no children.</p>
+
+	<p>For each SAPI required <a href="lapd.html#open-3"><tt>lapd:open/3</tt></a> is called.  This causes the creation
+	of a new supervisor which in turn creates a CME and a DLE process to handle the new SAPI.</p>
 
 	<h3>Primitives</h3>
 
