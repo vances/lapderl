@@ -40,12 +40,12 @@ link_connection_released({'DL', 'ESTABLISH', indication, _}, StateData) ->
 	NewStateData = StateData#state{next = 1},
 	case next_event(NewStateData) of
 		{bsc, Timeout, _Type, _PDU} ->
-			{next_state, link_conection_established, NewStateData, Timeout};
+			{next_state, link_connection_established, NewStateData, Timeout};
 		{bts, _, _, _} ->
-			{next_state, link_conection_established, NewStateData}
+			{next_state, link_connection_established, NewStateData}
 	end;
 link_connection_released({'DL', 'ESTABLISH', confirm, _}, StateData) ->
-	{next_state, link_conection_established, StateData};
+	{next_state, link_connection_established, StateData};
 link_connection_released({'DL', 'UNIT DATA', indication, _}, StateData) ->
 	{next_state, link_connection_released, StateData};
 link_connection_released({'DL', 'RELEASE', indication, _}, StateData) ->
@@ -56,9 +56,9 @@ link_connection_released(Event, StateData) ->
 	{next_state, link_connection_released, StateData}.
 
 awaiting_establish({'DL', 'ESTABLISH', confirm, _}, StateData) ->
-	{next_state, link_conection_released, StateData};
+	{next_state, link_connection_released, StateData};
 awaiting_establish({'DL', 'RELEASE', indication, _}, StateData) ->
-	{next_state, link_conection_released, StateData};
+	{next_state, link_connection_released, StateData};
 awaiting_establish({'DL', 'UNIT DATA', indication, _}, StateData) ->
 	{next_state, awaiting_establish, StateData};
 awaiting_establish({'DL', 'ESTABLISH', indication, _}, StateData) ->
@@ -68,23 +68,23 @@ awaiting_establish(Event, StateData) ->
 		{state, awaiting_establish}]),
 	{next_state, awaiting_establish, StateData}.
 
-link_conection_established({'DL', UI_I, indication, PDU}, StateData)
+link_connection_established({'DL', UI_I, indication, PDU}, StateData)
 		when UI_I == 'DATA'; UI_I == 'UNIT DATA' -> 
 	{bts, _, _, PDU} = next_event(StateData), 
 	NewStateData = StateData#state{next = StateData#state.next + 1},
 	case next_event(NewStateData) of
 		{bsc, Timeout, _Type, _PDU} ->
-			{next_state, link_conection_established, NewStateData, Timeout};
+			{next_state, link_connection_established, NewStateData, Timeout};
 		{bts, _, _, _} ->
-			{next_state, link_conection_established, NewStateData}
+			{next_state, link_connection_established, NewStateData}
 	end;
-link_conection_established({'DL', 'ESTABLISH', indication, _}, StateData) ->
+link_connection_established({'DL', 'ESTABLISH', indication, _}, StateData) ->
 	{next_state, link_connection_established, StateData};
-link_conection_established({'DL', 'ESTABLISH', confirm, _}, StateData) ->
+link_connection_established({'DL', 'ESTABLISH', confirm, _}, StateData) ->
 	{next_state, link_connection_established, StateData};
-link_conection_established({'DL', 'RELEASE', indication, _}, StateData) ->
+link_connection_established({'DL', 'RELEASE', indication, _}, StateData) ->
 	{next_state, link_connection_released, StateData};
-link_conection_established(timeout, StateData) ->
+link_connection_established(timeout, StateData) ->
 	case next_event(StateData) of
 		{bsc, _Timeout, i, PDU} ->
 			gen_fsm:send_event(StateData#state.sap, {'DL', 'DATA', request, PDU});
@@ -94,14 +94,14 @@ link_conection_established(timeout, StateData) ->
 	NewStateData = StateData#state{next = StateData#state.next + 1},
 	case next_event(NewStateData) of
 		{bsc, Timeout, _Type, _PDU} ->
-			{next_state, link_conection_established, NewStateData, Timeout};
+			{next_state, link_connection_established, NewStateData, Timeout};
 		{bts, _, _, _} ->
-			{next_state, link_conection_established, NewStateData}
+			{next_state, link_connection_established, NewStateData}
 	end;
-link_conection_established(Event, StateData) ->
+link_connection_established(Event, StateData) ->
 	error_logger:error_report([{module, ?MODULE}, {event, Event},
 		{state, link_connection_established}]),
-	{next_state, link_conection_established, StateData}.
+	{next_state, link_connection_established, StateData}.
 
 awaiting_release({'DL', 'RELEASE', confirm, _}, StateData) ->
 	{next_state, link_connection_released, StateData};
