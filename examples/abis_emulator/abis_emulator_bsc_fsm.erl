@@ -70,16 +70,14 @@ awaiting_establish(Event, StateData) ->
 
 link_conection_established({'DL', UI_I, indication, PDU}, StateData)
 		when UI_I == 'DATA'; UI_I == 'UNIT DATA' -> 
-	{bsc, _, _, PDU} = next_event(StateData), 
+	{bts, _, _, PDU} = next_event(StateData), 
 	NewStateData = StateData#state{next = StateData#state.next + 1},
 	case next_event(NewStateData) of
-		{bts, Timeout, _Type, _PDU} ->
-			{next_state, link_connection_established, NewStateData, Timeout};
-		{bsc, _, _, _PDU} ->
-			{next_state, link_connection_established, NewStateData}
+		{bsc, Timeout, _Type, _PDU} ->
+			{next_state, link_conection_established, NewStateData, Timeout};
+		{bts, _, _, _} ->
+			{next_state, link_conection_established, NewStateData}
 	end;
-link_conection_established({'DL', 'UNIT DATA', indication, _}, StateData) ->
-	{next_state, link_connection_established, StateData};
 link_conection_established({'DL', 'ESTABLISH', indication, _}, StateData) ->
 	{next_state, link_connection_established, StateData};
 link_conection_established({'DL', 'ESTABLISH', confirm, _}, StateData) ->
