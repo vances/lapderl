@@ -53,16 +53,15 @@
 		link_connection_established/2]).
 -export([handle_event/3, handle_info/3, handle_sync_event/4, code_change/4]).
 
--record(state, {sup, tei, sap, events, next}).
+-record(state, {sup, tei, script, sap, events, next}).
 
-init([Sup, TEI]) ->
-	{ok, init_lapd, #state{sup = Sup, tei = TEI}, 100}.
+init([Sup, TEI, Script]) ->
+	{ok, init_lapd, #state{sup = Sup, tei = TEI, script = Script}, 100}.
 
 init_lapd(timeout, StateData) ->
 	Children = supervisor:which_children(StateData#state.sup),
 	{value, {bts, LAPD, _, _}} = lists:keysearch(bts, 1, Children),
-	{ok, File} = application:get_env(file), % TODO:  per {lapd, tei}
-	{ok, Events} = file:consult(File),
+	{ok, Events} = file:consult(StateData#state.script),
 	{LME, _CME, DLE} = lapd:open(LAPD, 0, StateData#state.tei, [{role, network}]),
 	lapd:bind(LME, DLE, self()),
 	NewStateData = StateData#state{sap = DLE, events = Events},

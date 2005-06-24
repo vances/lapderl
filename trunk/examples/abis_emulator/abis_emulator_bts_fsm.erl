@@ -52,16 +52,15 @@
 -export([init_lapd/2, awaiting_establish/2, link_connection_established/2]).
 -export([handle_event/3, handle_info/3, handle_sync_event/4, code_change/4]).
 
--record(state, {sup, tei, sap, events, next}).
+-record(state, {sup, tei, script, sap, events, next}).
 
-init([Sup, TEI]) ->
-	{ok, init_lapd, #state{sup = Sup, tei = TEI}, 100}.
+init([Sup, TEI, Script]) ->
+	{ok, init_lapd, #state{sup = Sup, tei = TEI, script = Script}, 100}.
 
 init_lapd(timeout, StateData) ->
 	Children = supervisor:which_children(StateData#state.sup),
 	{value, {bsc, LAPD, _, _}} = lists:keysearch(bsc, 1, Children),
-	{ok, File} = application:get_env(file), % TODO:  per {lapd, tei}
-	{ok, Events} = file:consult(File),
+	{ok, Events} = file:consult(StateData#state.script),
 	{LME, _CME, DLE} = lapd:open(LAPD, 0, StateData#state.tei, []),
 	lapd:bind(LME, DLE, self()),
 	gen_fsm:send_event(DLE, {'DL', 'ESTABLISH', request, []}),
