@@ -49,7 +49,7 @@
 -export([init/1]).
 
 init(Args) ->
-	init(Args, 0, []).
+	init(Args, 1, []).
 
 init([{netaccess, Args}|T], LinkCount, Acc) ->
 	ChildSpec = init_na(Args),
