@@ -58,7 +58,7 @@ init([{Mode, LapdId, NAServerName}|T], Acc)
 init([{teis, Script, [H|T]}], Acc) ->
 	ChildSpec = init_tei(H, Script),
 	init([{teis, Script, T}], [ChildSpec|Acc]);
-init([], Acc) ->
+init(_, Acc) ->
 	{ok, {{one_for_one, 0, 1}, lists:reverse(Acc)}}.
 
 init_lapd(Mode, LapdId, NA) ->
