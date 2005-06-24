@@ -24,6 +24,9 @@
                      %    LapdId = integer()
                      %    Script = string() e.g. "events.txt"
                      %    TEIs = [integer()]   
-                     [{na_servers, [{{local, na}, "/dev/pri0", 0}]},
-                     {abis_links, [{bsc, {local, na}, 0}, {bts, {local, na}, 32}, "events.txt", [1, 2, 3, 4]}]}]},
+                     [{na_servers,
+                        [{{local, na}, "/dev/pri0", 0}]},
+                     {abis_links,
+                        [{{bsc, {local, na}, 0}, {bts, {local, na}, 32},
+                             "events.txt", [1, 2, 3, 4]}]}]},
       {mod,          {abis_emulator_app, []}}]}.
