@@ -58,7 +58,7 @@ init([{abis, Args}|T], LinkCount, Acc) ->
 	ChildSpec = init_link(LinkCount, Args),
 	init(T, LinkCount + 1,  [ChildSpec|Acc]);
 init([], _, Acc) ->
-	{ok, {{one_for_one, 0, 1}, list:reverse(Acc)}}.
+	{ok, {{one_for_one, 0, 1}, lists:reverse(Acc)}}.
 
 init_na(Args) ->
 	StartArgs = [abis_emulator_na_sup, Args],
