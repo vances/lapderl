@@ -138,11 +138,12 @@ handle_info({'EXIT', Port, Reason}, _StateName, StateData)
 		when is_port(Port) ->
 	{stop, Reason, StateData}.
 
-terminate(_Reason, _StateName, StateData) 
+terminate(Reason, _StateName, StateData) 
 		when is_port(StateData#state.port) ->
-	catch netaccess:close(StateData#state.port);
-terminate(_Reason, _StateName, _StateData) ->
-	ok.
+	catch netaccess:close(StateData#state.port),
+	Reason;
+terminate(Reason, _StateName, _StateData) ->
+	Reason.
 
 code_change(_OldVersion, StateName, StateData, _Extra) ->
 	{ok, StateName, StateData}.
