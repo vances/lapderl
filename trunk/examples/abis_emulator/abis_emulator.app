@@ -25,8 +25,8 @@
                      %    Script = string() e.g. "events.txt"
                      %    TEIs = [integer()]   
                      [{na_servers,
-                        [{{local, na}, "/dev/pri0", 0}]},
+                        [{{local, pri0}, "/dev/pri0", 0}]},
                      {abis_links,
-                        [{{bsc, {local, na}, 0}, {bts, {local, na}, 32},
+                        [{{bsc, 0, {local, pri0}}, {bts, 32, {local, pri0}},
                              "events.txt", [1, 2, 3, 4]}]}]},
       {mod,          {abis_emulator_app, []}}]}.
