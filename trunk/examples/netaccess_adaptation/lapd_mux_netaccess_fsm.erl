@@ -106,7 +106,9 @@ deactivated({_Port, L3L4m}, StateData) when is_record(L3L4m, l3_to_l4),
 deactivated({_Port, L3L4m}, StateData) when is_record(L3L4m, l3_to_l4),
 		L3L4m#l3_to_l4.msgtype == ?L3L4mERROR ->
 	Reason = iisdn:error_code(L3L4m#l3_to_l4.data),
-	{stop, Reason, StateData}.
+	{stop, Reason, StateData};
+deactivated(_Other, StateData) ->
+	{next_state, deactivated, StateData}.
 
 %% send a frame to layer 1
 activated({'PH', 'DATA', request, PDU}, StateData) when is_binary(PDU) ->
@@ -116,7 +118,9 @@ activated({'PH', 'DATA', request, PDU}, StateData) when is_binary(PDU) ->
 activated({_Port, L3L4m}, StateData) when is_record(L3L4m, l3_to_l4),
 		L3L4m#l3_to_l4.msgtype == ?L3L4mERROR ->
 	Reason = iisdn:error_code(L3L4m#l3_to_l4.data),
-	{stop, Reason, StateData}.
+	{stop, Reason, StateData};
+activated(_Other, StateData) ->
+	{next_state, activated, StateData}.
 
 handle_event(_Event, StateName, StateData) ->
 	{next_state, StateName, StateData}.
