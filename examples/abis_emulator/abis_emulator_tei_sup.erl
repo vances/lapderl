@@ -51,10 +51,10 @@
 -behaviour(supervisor).
 -export([init/1]).
 
-init([TEI, Script]) ->
-	BSCStartFunc = {gen_fsm, start_link, [abis_emulator_bsc_fsm, [self(), TEI, Script], []]},
+init([LinkSup, TEI, Script]) ->
+	BSCStartFunc = {gen_fsm, start_link, [abis_emulator_bsc_fsm, [LinkSup, TEI, Script], []]},
 	BSCChildSpec = {bsc, BSCStartFunc, permanent, 4000, worker, [abis_emulator_bsc_fsm]},
-	BTSStartFunc = {gen_fsm, start_link, [abis_emulator_bts_fsm, [self(), TEI, Script], []]},
+	BTSStartFunc = {gen_fsm, start_link, [abis_emulator_bts_fsm, [LinkSup, TEI, Script], []]},
 	BTSChildSpec = {bts, BTSStartFunc, permanent, 4000, worker, [abis_emulator_bts_fsm]},
 	{ok, {{one_for_all, 0, 1}, [BSCChildSpec, BTSChildSpec]}}.
 
