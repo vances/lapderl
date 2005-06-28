@@ -222,10 +222,10 @@ statename({'PH', 'DATA', indication, <<SAPI:6, _:2, TEI:7, _:1, _/binary>>} = Ev
 	end;
 %% L1 -> M L2 management
 statename({'PH', 'ACTIVATE', indication, _}, State) ->
-		{next_state, statename, State};
+	{next_state, statename, State};
 statename({'PH', 'DEACTIVATE', indication, _}, State) ->
 	% TODO:  resend to all DLEs
-		{next_state, statename, State};
+	{next_state, statename, State};
 statename(Event, State) ->
 	Module = State#lapd_mux_state.module,
 	StateName = State#lapd_mux_state.statename,
