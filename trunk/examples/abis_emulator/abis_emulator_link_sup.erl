@@ -67,6 +67,6 @@ init_lapd(Mode, LapdId, NA) ->
 	{Mode, StartFunc, permanent, 4000, worker, [lapd, lapd_mux_netaccess_fsm]}.
 
 init_tei(TEI, Script) ->
-	StartFunc = {supervisor, start_link, [abis_emulator_tei_sup, [self(), TEI, Script]]},
+	StartFunc = {supervisor, start_link, [abis_emulator_tei_sup, [TEI, Script]]},
 	{TEI, StartFunc, permanent, infinity, supervisor, [abis_emulator_tei_sup]}.
 
