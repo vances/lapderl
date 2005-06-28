@@ -59,7 +59,7 @@ init([Sup, TEI, Script]) ->
 
 init_lapd(timeout, StateData) ->
 	Children = supervisor:which_children(StateData#state.sup),
-	{value, {bsc, LAPD, _, _}} = lists:keysearch(bsc, 1, Children),
+	{value, {bts, LAPD, _, _}} = lists:keysearch(bts, 1, Children),
 	{ok, Events} = file:consult(StateData#state.script),
 	{LME, _CME, DLE} = lapd:open(LAPD, 0, StateData#state.tei, []),
 	lapd:bind(LME, DLE, self()),
