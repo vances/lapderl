@@ -91,30 +91,17 @@ deactivated({'PH', 'ACTIVATE', request, _}, StateData) ->
 	L2 = #level2{par = L2Parms, data_interface = D},
 	ProtoData = #ena_proto_data{level1 = L1, level2 = L2},
 	% send an L4L3mENABLE_PROTOCOL to activate the channel
-	netaccess:enable_protocol(Port, StateData#state.lapdid, ProtoData),
-	{next_state, deactivated, StateData#state{port = Port}};
-deactivated({_Port, L3L4m}, StateData) when is_record(L3L4m, l3_to_l4),
-		L3L4m#l3_to_l4.msgtype == ?L3L4mPROTOCOL_STATUS ->
-	P = iisdn:protocol_stat(L3L4m#l3_to_l4.data),
-	case  P#protocol_stat.status of
-		?IISDNdsESTABLISHED ->
-			gen_fsm:send_event(self(), {'PH', 'ACTIVATE', indication, undefined}),
-			{next_state, activated, StateData};
-		_ ->
-			{next_state, deactivated, StateData}
-	end;
-deactivated({_Port, L3L4m}, StateData) when is_record(L3L4m, l3_to_l4),
-		L3L4m#l3_to_l4.msgtype == ?L3L4mERROR ->
-	Reason = iisdn:error_code(L3L4m#l3_to_l4.data),
-	{stop, Reason, StateData};
-deactivated(_Other, StateData) ->
-	{next_state, deactivated, StateData}.
+	case netaccess:enable_protocol(Port, StateData#state.lapdid, ProtoData) of
+		#protocol_stat{status = ?IISDNdsESTABLISHED} ->
+			{next_state, activated, StateData#state{port = Port}};
+		_Other ->
+			{stop, not_established, StateData#state{port = Port}}
+	end.
 
 %% send a frame to layer 1
 activated({'PH', 'DATA', request, PDU}, StateData) when is_binary(PDU) ->
 	netaccess:send(StateData#state.port, PDU),
 	{next_state, activated, StateData};
-%% receive a frame from layer 1
 activated({_Port, L3L4m}, StateData) when is_record(L3L4m, l3_to_l4),
 		L3L4m#l3_to_l4.msgtype == ?L3L4mERROR ->
 	Reason = iisdn:error_code(L3L4m#l3_to_l4.data),
