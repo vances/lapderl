@@ -20,6 +20,7 @@ clean:
 .PHONY:	install
 install:	all
 	install -d ${ERL_TOP}/lib/lapd-${VERSION}/examples/netaccess_adaptation
+	install -f ${ERL_TOP}/lib/lapd-${VERSION}/examples/netaccess_adaptation lapd_netaccess.app
 	install -f ${ERL_TOP}/lib/lapd-${VERSION}/examples/netaccess_adaptation lapd_mux_netaccess_fsm.${EMU}
 	install -f ${ERL_TOP}/lib/lapd-${VERSION}/examples/netaccess_adaptation lapd_mux_netaccess_fsm.erl
 
