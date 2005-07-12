@@ -85,7 +85,8 @@ init([NAServerRef, LapdId]) ->
 %% enable layer 1
 deactivated({'PH', 'ACTIVATE', request, _}, StateData) ->
 	Port = netaccess:open(StateData#state.na),
-	L1 = #level1{l1_mode = ?IISDNl1modHDLC},
+	L1 = #level1{l1_mode = ?IISDNl1modHDLC,
+			num_txbuf = 3, num_rxbuf = 5},
 	L2Parms = #l2_lap_params{mode = ?IISDNl2modDISABLED},
 	D = #data_interface{enable = 1, data_channel = StateData#state.lapdid},
 	L2 = #level2{par = L2Parms, data_interface = D},
