@@ -4,6 +4,6 @@
       {vsn,          "1.0"},
       {modules,      [lapd_mux_netaccess_fsm]},
       {registered,   []},
-      {included_applications, [netaccess]},
+      {included_applications, [netaccess, lapd]},
       {applications, [kernel, stdlib]}]}.
 
