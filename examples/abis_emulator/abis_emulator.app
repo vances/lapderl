@@ -7,7 +7,7 @@
                            abis_emulator_tei_sup, 
                            abis_emulator_bsc_fsm, abis_emulator_bts_fsm]},
       {registered,   []},
-      {included_applications, []},
+      {included_applications, [netaccess, lapd_netaccess, lapd]},
       {applications, [kernel, stdlib]},
       {env,          % {na_servers, NASpecs}
                      %    NASpecs = [NASpec]
