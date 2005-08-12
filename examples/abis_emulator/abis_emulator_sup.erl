@@ -35,7 +35,7 @@
 %%% POSSIBILITY OF SUCH DAMAGE.
 %%%---------------------------------------------------------------------
 %%% 
-%%% @author Vance Shipley <vances@motivity.ca>
+%%% @author Vance Shipley <vances@motivity.ca> [http://www.motivity.ca]
 %%%
 %%% @doc Top level supervisor for the abis_emulator application.
 %%%

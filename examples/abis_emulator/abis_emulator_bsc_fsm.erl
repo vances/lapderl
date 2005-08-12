@@ -35,7 +35,7 @@
 %%% POSSIBILITY OF SUCH DAMAGE.
 %%%---------------------------------------------------------------------
 %%%
-%%% @author Vance Shipley <vances@motivity.ca>
+%%% @author Vance Shipley <vances@motivity.ca> [http://www.motivity.ca]
 %%%
 %%% @doc An finite state machine which emulates the Base Station 
 %%% 		Controller (BSC) side of a contrived GSM Abis protocol session.

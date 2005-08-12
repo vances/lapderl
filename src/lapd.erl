@@ -35,7 +35,7 @@
 %%% POSSIBILITY OF SUCH DAMAGE.
 %%%---------------------------------------------------------------------
 %%%
-%%% @author Vance Shipley <vances@motivity.ca>
+%%% @author Vance Shipley <vances@motivity.ca> [http://www.motivity.ca]
 %%%
 %%% @doc Main API of the LAPD application.
 %%%	<p>This module provides the main application programming interface

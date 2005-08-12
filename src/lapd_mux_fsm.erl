@@ -35,7 +35,7 @@
 %%% POSSIBILITY OF SUCH DAMAGE.
 %%%---------------------------------------------------------------------
 %%%
-%%% @author Vance Shipley <vances@motivity.ca>
+%%% @author Vance Shipley <vances@motivity.ca> [http://www.motivity.ca]
 %%%
 %%% @doc A behaviour module for implementing the Q.921 LAPD multiplex procedures.
 %%% 	<p>This module encapsulates the functionality required of the multiplex
